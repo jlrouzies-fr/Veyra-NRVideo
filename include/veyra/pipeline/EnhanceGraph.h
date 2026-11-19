@@ -153,6 +153,8 @@ struct EnhanceGraphDesc {
     bool vfgAutoRegulate=false;
     bool motionBlur=false;
     float motionBlurShutter=0.5f;
+    bool fgHighlightClamp=false;
+    float fgHighlightStrength=0.5f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -990,6 +992,11 @@ private:
     bool motionBlurActive()const{return desc_.motionBlur&&!desc_.stillImage;}
     void applyMotionBlur(ID3D12GraphicsCommandList*,unsigned outputIndex,unsigned parity,float length);
     ID3D12Resource* motionBlurSource(unsigned outputIndex)const;
+    // Highlight clamp on generated frames (before exclusion and motion blur).
+    ComputePass highlightPass_;
+    ComPtr<ID3D12Resource> highlightScratch_;
+    bool highlightClampActive()const{return desc_.fgHighlightClamp&&!desc_.stillImage;}
+    void applyHighlightClamp(ID3D12GraphicsCommandList*,unsigned generatedSlot,float phase);
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;

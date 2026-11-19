@@ -788,6 +788,7 @@ bool requiresGraphRebuild(const EnhancementSettings& savedPrevious, const Enhanc
     if (previous.dlssgLite != next.dlssgLite) return true;
     if (previous.vfgAutoRegulate != next.vfgAutoRegulate) return true;
     if (previous.motionBlur != next.motionBlur) return true;
+    if (previous.fgHighlightClamp != next.fgHighlightClamp) return true;
     if (previous.flow != next.flow) return true;
     if (previous.captureCompatible != next.captureCompatible) return true;
     if (previous.forceSdrPreview != next.forceSdrPreview) return true;

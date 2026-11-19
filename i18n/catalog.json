@@ -25532,6 +25532,38 @@
    "en": "The engine did not accept motion blur; the previous setting is kept",
    "ja": "エンジンがモーションブラーを受け付けませんでした。以前の設定を維持します",
    "ko": "엔진이 모션 블러를 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "高光稳定",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "高光穩定",
+   "en": "Highlight stabiliser",
+   "ja": "ハイライト安定化",
+   "ko": "하이라이트 안정화"
+  },
+  {
+   "zh": "限制补出帧中的高亮像素，使其不超出前后真实帧在同一位置的范围；减少树叶间 HDR 高光的闪烁。需要光流，开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "限制補出幀中的高亮像素，使其不超出前後真實幀在同一位置的範圍；減少樹葉間 HDR 高光的閃爍。需要光流，開關會重建畫面管線",
+   "en": "Keeps bright pixels of generated frames within what the real frames before and after hold at the same place, reducing HDR highlight shimmer through leaves. Needs optical flow; switching it rebuilds the picture pipeline",
+   "ja": "生成フレームの明るいピクセルを、前後の実フレームの同じ位置の範囲内に収め、木の葉の間の HDR ハイライトのちらつきを抑えます。オプティカルフローが必要で、切り替えると映像パイプラインを再構築します",
+   "ko": "생성된 프레임의 밝은 픽셀을 앞뒤 실제 프레임의 같은 위치 범위 안으로 제한해 나뭇잎 사이 HDR 하이라이트의 깜박임을 줄입니다. 광학 흐름이 필요하며, 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "越大越严格：0 只参考周围 3x3 像素，100 必须介于前后两帧之间",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "越大越嚴格：0 只參考周圍 3x3 像素，100 必須介於前後兩幀之間",
+   "en": "Higher is stricter: 0 only checks the surrounding 3x3 pixels, 100 must lie between the two real frames",
+   "ja": "大きいほど厳しくなります：0 は周囲 3x3 ピクセルのみ、100 は前後 2 フレームの間に収めます",
+   "ko": "클수록 엄격합니다: 0은 주변 3x3 픽셀만, 100은 앞뒤 두 프레임 사이여야 합니다"
+  },
+  {
+   "zh": "引擎未接受高光稳定，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受高光穩定，原設定保留",
+   "en": "The engine did not accept the highlight stabiliser; the previous setting is kept",
+   "ja": "エンジンがハイライト安定化を受け付けませんでした。以前の設定を維持します",
+   "ko": "엔진이 하이라이트 안정화를 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }

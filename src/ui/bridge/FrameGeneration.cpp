@@ -269,6 +269,29 @@ void QmlPlayerBridge::setMotionBlurShutter(int percent) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "motion blur shutter not saved");
     emit settingsChanged();
 }
+// Highlight clamp on generated frames: shell preferences like motion blur. On/off rebuilds
+// the graph (it needs the optical flow); the strength is live.
+bool QmlPlayerBridge::fgHighlightClamp() const { return settings().fgHighlightClamp; }
+void QmlPlayerBridge::setFgHighlightClamp(bool value) {
+    auto s = settings();
+    if (s.fgHighlightClamp == value) return;
+    s.fgHighlightClamp = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受高光稳定，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("fgHighlightClamp")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "highlight clamp not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::fgHighlightStrength() const { return int(std::lround(settings().fgHighlightStrength * 100.0f)); }
+void QmlPlayerBridge::setFgHighlightStrength(int percent) {
+    percent = std::clamp(percent, 0, 100);
+    auto s = settings();
+    if (int(std::lround(s.fgHighlightStrength * 100.0f)) == percent) return;
+    s.fgHighlightStrength = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受高光稳定，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("fgHighlightStrength")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "highlight clamp strength not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

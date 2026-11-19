@@ -536,6 +536,9 @@ class QmlPlayerBridge : public QObject {
     // 动态模糊: EnhancementSettings::motionBlur / motionBlurShutter (percent of one output frame).
     Q_PROPERTY(bool motionBlur READ motionBlur WRITE setMotionBlur NOTIFY settingsChanged)
     Q_PROPERTY(int motionBlurShutter READ motionBlurShutter WRITE setMotionBlurShutter NOTIFY settingsChanged)
+    // 高光稳定: EnhancementSettings::fgHighlightClamp / fgHighlightStrength (percent).
+    Q_PROPERTY(bool fgHighlightClamp READ fgHighlightClamp WRITE setFgHighlightClamp NOTIFY settingsChanged)
+    Q_PROPERTY(int fgHighlightStrength READ fgHighlightStrength WRITE setFgHighlightStrength NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1233,6 +1236,10 @@ public:
     void setMotionBlur(bool value);
     int motionBlurShutter() const;
     void setMotionBlurShutter(int percent);
+    bool fgHighlightClamp() const;
+    void setFgHighlightClamp(bool value);
+    int fgHighlightStrength() const;
+    void setFgHighlightStrength(int percent);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

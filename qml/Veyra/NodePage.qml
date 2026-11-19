@@ -1690,6 +1690,25 @@ VPage {
                     }
                 }
                 VRow {
+                    label: qsTr("高光稳定")
+                    hint: qsTr("限制补出帧中的高亮像素，使其不超出前后真实帧在同一位置的范围；减少树叶间 HDR 高光的闪烁。需要光流，开关会重建画面管线")
+                    VSwitch { objectName: "node-fg-highlight-clamp"; checked: veyra.fgHighlightClamp; onToggled: checked => veyra.fgHighlightClamp = checked }
+                }
+                VRow {
+                    label: qsTr("强度")
+                    visible: veyra.fgHighlightClamp
+                    hint: qsTr("越大越严格：0 只参考周围 3x3 像素，100 必须介于前后两帧之间")
+                    VSlider {
+                        objectName: "node-fg-highlight-strength"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 50
+                        from: 0; to: 100; stepSize: 5
+                        value: veyra.fgHighlightStrength
+                        onMoved: value => veyra.fgHighlightStrength = Math.round(value)
+                    }
+                }
+                VRow {
                     label: qsTr("补帧运动来源")
                     visible: veyra.fgBackendName !== "vfg"
                     hint: qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")

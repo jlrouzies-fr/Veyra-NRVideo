@@ -504,6 +504,10 @@ struct EnhancementSettings {
     // shutter is live.
     bool motionBlur=false;
     float motionBlurShutter=0.5f; // share of one output frame the virtual shutter is open
+    // Clamp bright pixels of generated frames to the real frames around them (HDR highlight
+    // shimmer through foliage). Shell preference; on/off rebuilds (needs the flow), strength live.
+    bool fgHighlightClamp=false;
+    float fgHighlightStrength=0.5f; // 0 loose (3x3 neighbourhoods), 1 tight (between the two real values)
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -678,6 +682,7 @@ struct EnhancementSettings {
         if(frameGenerationBackend<FrameGenerationBackend::Dlss||frameGenerationBackend>FrameGenerationBackend::AmdFrc)return "invalid frame generation backend";
         if(vfgQuality>=kVfgQualityCount)return "invalid VFG quality";
         if(!(motionBlurShutter>=0.05f&&motionBlurShutter<=1.0f))return "invalid motion blur shutter";
+        if(!(fgHighlightStrength>=0.0f&&fgHighlightStrength<=1.0f))return "invalid highlight clamp strength";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.

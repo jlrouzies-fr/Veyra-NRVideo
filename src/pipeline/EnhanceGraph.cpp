@@ -1100,6 +1100,11 @@ bool EnhanceGraph::createResources()
         if(!motionBlurScratch_)return false;
         veyra::log::info("motion-blur",std::format("enabled shutter={:.2f} {}x{}",desc_.motionBlurShutter,workW_,workH_));
     }
+    if(highlightClampActive()){
+        highlightScratch_=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+        if(!highlightScratch_)return false;
+        veyra::log::info("highlight-clamp",std::format("enabled strength={:.2f} {}x{}",desc_.fgHighlightStrength,workW_,workH_));
+    }
     if(desc_.exclusion.enabled){
         for(auto& texture:exclusionVideo_){
             texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
@@ -1296,7 +1301,7 @@ bool EnhanceGraph::initNvof()
     const bool inGraphFgFlow=fgEnabled_&&desc_.fgUsesFlow()&&
         (desc_.frameGenerationBackend==engine::FrameGenerationBackend::Dlss||desc_.frameGenerationBackend==engine::FrameGenerationBackend::Anr||engine::fsrFrameGeneration(desc_.frameGenerationBackend));
     // DLAA takes its motion from the same flow.
-    if (desc_.noFeatures || !(nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || inGraphFgFlow || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive())) {
+    if (desc_.noFeatures || !(nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || inGraphFgFlow || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive() || highlightClampActive())) {
         mvecSource_="zero motion (no external flow consumer)";
         veyra::log::info("graph", "optical-flow session skipped: no external motion consumer");
         return true;
@@ -2185,6 +2190,8 @@ bool EnhanceGraph::createComputePasses()
        !exclusionPass_.create(context_.device(),cs,kOutputPoolSlots*8,2,2,24,0,true)))return false;
     if(motionBlurActive()&&(!motionBlurPass_.loadShader("MotionBlur.dxil",cs)||
        !motionBlurPass_.create(context_.device(),cs,kOutputPoolSlots*2*5,4,1,24,0,true)))return false;
+    if(highlightClampActive()&&(!highlightPass_.loadShader("HighlightClamp.dxil",cs)||
+       !highlightPass_.create(context_.device(),cs,kGeneratedPoolSlots*5,4,1,8,0,true)))return false;
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2637,6 +2644,17 @@ bool EnhanceGraph::createViews()
             if(viewsUav)makeUav(context_.device(),output<2?motionBlurVideo_[output].Get():motionBlurScratch_.Get(),outputFormat(),cpu(motionBlurPass_,base+4));
         }
     }
+    if(highlightClampActive()){
+        // Generated slot g sits between the real frames of parity 1-(g%2) (before) and g%2.
+        for(unsigned slot=0;slot<kGeneratedPoolSlots;++slot){
+            const unsigned base=slot*5,parity=slot%2;
+            if(viewsTex)stagedSrv(genFrame_[slot].Get(),outputFormat(),highlightPass_,base);
+            if(viewsTex)stagedSrv(baseFlow_.Get(),DXGI_FORMAT_R16G16_FLOAT,highlightPass_,base+1);
+            if(viewsTex)stagedSrv(videoFrame_[parity].Get(),outputFormat(),highlightPass_,base+2);
+            if(viewsTex)stagedSrv(videoFrame_[1-parity].Get(),outputFormat(),highlightPass_,base+3);
+            if(viewsUav)makeUav(context_.device(),highlightScratch_.Get(),outputFormat(),cpu(highlightPass_,base+4));
+        }
+    }
     return true;
 }
 
@@ -2883,6 +2901,33 @@ void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned outp
     for(auto* real:{videoFrame_[parity].Get(),videoFrame_[1-parity].Get()})
         if(real!=source)tracker_.transition(list,real,D3D12_RESOURCE_STATE_COMMON);
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
+}
+
+void EnhanceGraph::applyHighlightClamp(ID3D12GraphicsCommandList* list,unsigned slot,float phase){
+    if(!highlightClampActive()||slot>=kGeneratedPoolSlots)return;
+    auto* generated=genFrame_[slot].Get();
+    auto* current=videoFrame_[slot%2].Get();
+    auto* previous=videoFrame_[1-slot%2].Get();
+    for(auto* r:{generated,current,previous,baseFlow_.Get()})
+        tracker_.transition(list,r,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,highlightScratch_.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    // Brightness ramp in the output encoding (max channel): about 200 -> 500 nits for HDR
+    // (PQ 0.58 -> 0.68, scRGB 2.5 -> 6.25), the top of the range for SDR.
+    const float mode=hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f;
+    const float low=mode>1.5f?0.58f:mode>0.5f?2.5f:0.75f;
+    const float high=mode>1.5f?0.68f:mode>0.5f?6.25f:0.9f;
+    const float constants[8]={uintBits(workW_),uintBits(workH_),std::clamp(phase,0.f,1.f),frameFlowValid_?1.f:0.f,
+        low,high,desc_.fgHighlightStrength,0};
+    const auto heap=highlightPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+    const auto base=slot*5;
+    highlightPass_.bind(list,constants,heap+base*highlightPass_.increment,heap+(base+4)*highlightPass_.increment);
+    list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
+    tracker_.uavBarrier(list,highlightScratch_.Get());
+    tracker_.transition(list,highlightScratch_.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE);
+    tracker_.transition(list,generated,D3D12_RESOURCE_STATE_COPY_DEST);
+    list->CopyResource(generated,highlightScratch_.Get());
+    for(auto* r:{generated,current,previous,highlightScratch_.Get()})
+        tracker_.transition(list,r,D3D12_RESOURCE_STATE_COMMON);
 }
 
 bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, FrameOutputs& out, uint64_t sourceFrameId, const ColorDescription* color, const HardwareSurfaceInput* hardwareSurface, bool retainReferences, const FgAdmission& admitFg, unsigned previewMultiplier, bool pausedResidualRefresh, const std::function<void()>& previewCheckpoint, const AVFrame* doviEl, const DoviP7Constants* doviP7)
@@ -3503,7 +3548,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     };
     // Guidance from original source-space color before SR/NR. Queue waits are GPU-side.
     bool haveFlow = false;
-    const bool runMotion = nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || (fgEnabled_&&desc_.fgUsesFlow()) || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive();
+    const bool runMotion = nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || (fgEnabled_&&desc_.fgUsesFlow()) || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive() || highlightClampActive();
     if (runMotion && (gpuDis_ || amdOf_ || (nvof_ && nvof_->initialized()))) {
         const float dims[8] = {uintBits(nvofW_),uintBits(nvofH_),uintBits(nvofW_),uintBits(nvofH_),0,0,0,0};
         if (prevValid_) {
@@ -4311,6 +4356,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COPY_DEST);
             const bool copied=amfFrc_->copyOutput(flist,genFrame_[generatedSlot].Get());
             if(!copied&&!resetFg){veyra::log::error("amf-frc","AMF returned no interpolated frame for this pair");failedBackend_=engine::FailedBackend::Fg;return false;}
+            if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
@@ -4337,6 +4383,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             auto* flist=ring_.acquireNext(slot,st);if(!flist)return false;
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COPY_DEST);
             if(!vfgBackend_->copyOutput(flist,genFrame_[generatedSlot].Get(),generatedSlot)){failedBackend_=engine::FailedBackend::Fg;return false;}
+            if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
@@ -4420,6 +4467,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         tracker_.transition(flist,fgDisable_[parity].Get(),D3D12_RESOURCE_STATE_COPY_SOURCE);
         flist->CopyBufferRegion(fgDisableReadback_[generatedSlot].Get(),0,fgDisable_[parity].Get(),0,4);
         }
+        if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
         if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
         if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
         tracker_.transition(flist,videoFrame_[parity].Get(),D3D12_RESOURCE_STATE_COMMON);
@@ -4596,6 +4644,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     // 2026-10-01: switching it on mid-play did nothing until something else rebuilt).
     if(s.exclusion.enabled!=desc_.exclusion.enabled)return false;
     if(s.motionBlur!=desc_.motionBlur)return false;
+    if(s.fgHighlightClamp!=desc_.fgHighlightClamp)return false;
     if((s.nrHoldStrength>0.0f)!=(desc_.nrHoldStrength>0.0f))return false;
     // NR inference reuse: a preview graph allocates its pass only when built
     // with reuse on, so on/off rebuilds; Auto and the manual ratios are live.
@@ -4650,6 +4699,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.contentRate=s.content;desc_.model=s.model;desc_.residual=s.residual;desc_.protection=s.protection;desc_.exclusion=s.exclusion;desc_.settingsRevision=s.revision;
     desc_.nrHoldStrength=s.nrHoldStrength;desc_.nrHoldTolerance=s.nrHoldTolerance;
     desc_.motionBlurShutter=s.motionBlurShutter;
+    desc_.fgHighlightStrength=s.fgHighlightStrength;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
@@ -4931,6 +4981,7 @@ void EnhanceGraph::shutdown()
     exclusionPass_={};exclusionScratch_.Reset();
     motionBlurPass_={};motionBlurScratch_.Reset();
     for(auto& r:motionBlurVideo_)r.Reset();
+    highlightPass_={};highlightScratch_.Reset();
     for(auto& r:exclusionVideo_)r.Reset();
     for(auto& r:exclusionUi_)r.Reset();
     for(auto& r:sourceReferences_)r.Reset();for(auto& r:baseReferences_)r.Reset();workRgba_.Reset();
