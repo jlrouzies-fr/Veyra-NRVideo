@@ -1671,6 +1671,25 @@ VPage {
                     VSwitch { objectName: "node-vfg-auto-regulate"; checked: veyra.vfgAutoRegulate; onToggled: checked => veyra.vfgAutoRegulate = checked }
                 }
                 VRow {
+                    label: qsTr("动态模糊")
+                    hint: qsTr("沿光流方向模糊每一帧（包括补出的帧），像相机快门那样；需要光流，开关会重建画面管线")
+                    VSwitch { objectName: "node-motion-blur"; checked: veyra.motionBlur; onToggled: checked => veyra.motionBlur = checked }
+                }
+                VRow {
+                    label: qsTr("快门")
+                    visible: veyra.motionBlur
+                    hint: qsTr("快门在一帧里打开的比例：越大越模糊")
+                    VSlider {
+                        objectName: "node-motion-blur-shutter"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 50
+                        from: 5; to: 100; stepSize: 5
+                        value: veyra.motionBlurShutter
+                        onMoved: value => veyra.motionBlurShutter = Math.round(value)
+                    }
+                }
+                VRow {
                     label: qsTr("补帧运动来源")
                     visible: veyra.fgBackendName !== "vfg"
                     hint: qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")

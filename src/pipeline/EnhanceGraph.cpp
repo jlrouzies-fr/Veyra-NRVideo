@@ -1091,6 +1091,15 @@ bool EnhanceGraph::createResources()
     if(!createBeautyShared())return false;
     videoFrame_[0] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
     videoFrame_[1] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
+    if(motionBlurActive()){
+        for(auto& texture:motionBlurVideo_){
+            texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+            if(!texture)return false;
+        }
+        motionBlurScratch_=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+        if(!motionBlurScratch_)return false;
+        veyra::log::info("motion-blur",std::format("enabled shutter={:.2f} {}x{}",desc_.motionBlurShutter,workW_,workH_));
+    }
     if(desc_.exclusion.enabled){
         for(auto& texture:exclusionVideo_){
             texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
@@ -1287,7 +1296,7 @@ bool EnhanceGraph::initNvof()
     const bool inGraphFgFlow=fgEnabled_&&desc_.fgUsesFlow()&&
         (desc_.frameGenerationBackend==engine::FrameGenerationBackend::Dlss||desc_.frameGenerationBackend==engine::FrameGenerationBackend::Anr||engine::fsrFrameGeneration(desc_.frameGenerationBackend));
     // DLAA takes its motion from the same flow.
-    if (desc_.noFeatures || !(nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || inGraphFgFlow || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested())) {
+    if (desc_.noFeatures || !(nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || inGraphFgFlow || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive())) {
         mvecSource_="zero motion (no external flow consumer)";
         veyra::log::info("graph", "optical-flow session skipped: no external motion consumer");
         return true;
@@ -2174,6 +2183,8 @@ bool EnhanceGraph::createComputePasses()
     std::vector<uint8_t> cs;
     if(desc_.exclusion.enabled&&(!exclusionPass_.loadShader("EffectExclusion.dxil",cs)||
        !exclusionPass_.create(context_.device(),cs,kOutputPoolSlots*8,2,2,24,0,true)))return false;
+    if(motionBlurActive()&&(!motionBlurPass_.loadShader("MotionBlur.dxil",cs)||
+       !motionBlurPass_.create(context_.device(),cs,kOutputPoolSlots*3,2,1,8,0,true)))return false;
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2614,6 +2625,14 @@ bool EnhanceGraph::createViews()
             }
         }
     }
+    if(motionBlurActive()){
+        for(unsigned output=0;output<kOutputPoolSlots;++output){
+            const unsigned base=output*3;
+            if(viewsTex)stagedSrv(motionBlurSource(output),outputFormat(),motionBlurPass_,base);
+            if(viewsTex)stagedSrv(baseFlow_.Get(),DXGI_FORMAT_R16G16_FLOAT,motionBlurPass_,base+1);
+            if(viewsUav)makeUav(context_.device(),output<2?motionBlurVideo_[output].Get():motionBlurScratch_.Get(),outputFormat(),cpu(motionBlurPass_,base+2));
+        }
+    }
     return true;
 }
 
@@ -2816,6 +2835,39 @@ bool EnhanceGraph::composeExclusion(ID3D12GraphicsCommandList* list,unsigned out
         tracker_.transition(list,exclusionUi_[rawParity].Get(),D3D12_RESOURCE_STATE_COMMON);
     }
     return true;
+}
+
+ID3D12Resource* EnhanceGraph::motionBlurSource(unsigned output)const{
+    if(output>=2)return genFrame_[output-2].Get();
+    return exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
+}
+
+// Blurs one output frame along this frame's flow (baseFlow_: current->previous, work
+// pixels, one source frame). Real frames go to motionBlurVideo_ (the presented texture;
+// FG still reads the sharp videoFrame_), generated frames are blurred in place. With no
+// valid flow this frame (first frame, reset), a real frame is copied unchanged.
+void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned output,float length){
+    if(!motionBlurActive())return;
+    if(!frameFlowValid_)length=0;
+    if(output>=2&&length<=0)return;
+    auto* source=motionBlurSource(output);
+    auto* destination=output<2?motionBlurVideo_[output].Get():motionBlurScratch_.Get();
+    tracker_.transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,baseFlow_.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,destination,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    const float constants[8]={uintBits(workW_),uintBits(workH_),length,0.04f*float(workW_),0.75f,0,0,0};
+    const auto heap=motionBlurPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+    const auto base=output*3;
+    motionBlurPass_.bind(list,constants,heap+base*motionBlurPass_.increment,heap+(base+2)*motionBlurPass_.increment);
+    list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
+    tracker_.uavBarrier(list,destination);
+    if(output>=2){
+        tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COPY_SOURCE);
+        tracker_.transition(list,source,D3D12_RESOURCE_STATE_COPY_DEST);
+        list->CopyResource(source,destination);
+    }
+    tracker_.transition(list,source,D3D12_RESOURCE_STATE_COMMON);
+    tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
 }
 
 bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, FrameOutputs& out, uint64_t sourceFrameId, const ColorDescription* color, const HardwareSurfaceInput* hardwareSurface, bool retainReferences, const FgAdmission& admitFg, unsigned previewMultiplier, bool pausedResidualRefresh, const std::function<void()>& previewCheckpoint, const AVFrame* doviEl, const DoviP7Constants* doviP7)
@@ -3436,7 +3488,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     };
     // Guidance from original source-space color before SR/NR. Queue waits are GPU-side.
     bool haveFlow = false;
-    const bool runMotion = nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || (fgEnabled_&&desc_.fgUsesFlow()) || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested();
+    const bool runMotion = nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || (fgEnabled_&&desc_.fgUsesFlow()) || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive();
     if (runMotion && (gpuDis_ || amdOf_ || (nvof_ && nvof_->initialized()))) {
         const float dims[8] = {uintBits(nvofW_),uintBits(nvofH_),uintBits(nvofW_),uintBits(nvofH_),0,0,0,0};
         if (prevValid_) {
@@ -4223,6 +4275,9 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         tracker_.transition(list,videoFrame_[parity].Get(),D3D12_RESOURCE_STATE_COMMON);
     }
     if(!composeExclusion(list,parity,parity,presentSinkFg()))return false;
+    // A real frame is shown for 1 / outputMultiplier of the pair with FG, else for all of it.
+    const float motionBlurLength=desc_.motionBlurShutter/float(runFg&&fgCreated()?std::max(1u,outputMultiplier):1u);
+    applyMotionBlur(list,parity,motionBlurLength);
     if(!runFg)gpuTimer_.resolve(list);
     if (!submitGraph(slot)) return false;
     if(!runFg)gpuTimer_.submitted(ring_.lastSignaledValue());
@@ -4242,6 +4297,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             const bool copied=amfFrc_->copyOutput(flist,genFrame_[generatedSlot].Get());
             if(!copied&&!resetFg){veyra::log::error("amf-frc","AMF returned no interpolated frame for this pair");failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
+            if(!resetFg)applyMotionBlur(flist,generatedSlot+2,motionBlurLength);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
             gpuTimer_.mark(flist,GpuStage::Fg1,true);gpuTimer_.mark(flist,GpuStage::FgBatch,true);gpuTimer_.resolve(flist);
             if(!submitGraph(slot))return false;
@@ -4267,6 +4323,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COPY_DEST);
             if(!vfgBackend_->copyOutput(flist,genFrame_[generatedSlot].Get(),generatedSlot)){failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
+            if(!resetFg)applyMotionBlur(flist,generatedSlot+2,motionBlurLength);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
             const auto timingStage=GpuStage(unsigned(GpuStage::Fg1)+sub-1);gpuTimer_.mark(flist,timingStage,true);
             if(sub<fgCalls)gpuTimer_.mark(flist,GpuStage(unsigned(GpuStage::Fg1)+sub));
@@ -4349,6 +4406,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         flist->CopyBufferRegion(fgDisableReadback_[generatedSlot].Get(),0,fgDisable_[parity].Get(),0,4);
         }
         if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
+        if(!resetFg)applyMotionBlur(flist,generatedSlot+2,motionBlurLength);
         tracker_.transition(flist,videoFrame_[parity].Get(),D3D12_RESOURCE_STATE_COMMON);
         tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
         tracker_.transition(flist,depthTex_.Get(),D3D12_RESOURCE_STATE_COMMON);
@@ -4383,7 +4441,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     ++realFrameIndex_;
     out.realFrameIndex = realFrameIndex_;
     out.videoSlot = parity;
-    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=exclusionVideo_[parity]?exclusionVideo_[parity]:videoFrame_[parity];real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
+    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=motionBlurVideo_[parity]?motionBlurVideo_[parity]:exclusionVideo_[parity]?exclusionVideo_[parity]:videoFrame_[parity];real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
     if(veyra::log::verboseFrameLogs())veyra::log::info("frame-batch",std::format("batch={} epoch={} revision={} source={} a={} b={} count={} realSlot={} realFence={} genSlot={} genFence={}",out.batch.batchId,epoch_,out.batch.identity.settingsRevision,out.batch.identity.sourceFrameId,out.batch.a100ns,out.batch.b100ns,out.batch.count,parity,out.videoFenceValue,out.genSlot,out.genFenceValue));
     if(pausedEligible&&lastAppliedSettings_){
         pausedNrCacheValid_=true;pausedNrFrame_=frame;pausedNrSourceId_=sourceFrameId;pausedNrPts_=ptsMs;
@@ -4522,6 +4580,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     // tolerance are uniforms. Neither used to reach a running graph (field report
     // 2026-10-01: switching it on mid-play did nothing until something else rebuilt).
     if(s.exclusion.enabled!=desc_.exclusion.enabled)return false;
+    if(s.motionBlur!=desc_.motionBlur)return false;
     if((s.nrHoldStrength>0.0f)!=(desc_.nrHoldStrength>0.0f))return false;
     // NR inference reuse: a preview graph allocates its pass only when built
     // with reuse on, so on/off rebuilds; Auto and the manual ratios are live.
@@ -4575,6 +4634,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     if(faceTracker_)faceTracker_->configure(desc_.beautyDetection,beautyMinConfidence());
     desc_.contentRate=s.content;desc_.model=s.model;desc_.residual=s.residual;desc_.protection=s.protection;desc_.exclusion=s.exclusion;desc_.settingsRevision=s.revision;
     desc_.nrHoldStrength=s.nrHoldStrength;desc_.nrHoldTolerance=s.nrHoldTolerance;
+    desc_.motionBlurShutter=s.motionBlurShutter;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
@@ -4667,7 +4727,7 @@ uint64_t EnhanceGraph::nvofNextOutValue() const
 
 ID3D12Resource* EnhanceGraph::videoFrameResource(uint32_t slot) const
 {
-    return slot<2?(exclusionVideo_[slot]?exclusionVideo_[slot].Get():videoFrame_[slot].Get()):nullptr;
+    return slot<2?(motionBlurVideo_[slot]?motionBlurVideo_[slot].Get():exclusionVideo_[slot]?exclusionVideo_[slot].Get():videoFrame_[slot].Get()):nullptr;
 }
 
 ID3D12Resource* EnhanceGraph::generatedFrameResource(uint32_t slot) const
@@ -4854,6 +4914,8 @@ void EnhanceGraph::shutdown()
     neuralTex_.Reset();
     proxyTex_.Reset();
     exclusionPass_={};exclusionScratch_.Reset();
+    motionBlurPass_={};motionBlurScratch_.Reset();
+    for(auto& r:motionBlurVideo_)r.Reset();
     for(auto& r:exclusionVideo_)r.Reset();
     for(auto& r:exclusionUi_)r.Reset();
     for(auto& r:sourceReferences_)r.Reset();for(auto& r:baseReferences_)r.Reset();workRgba_.Reset();

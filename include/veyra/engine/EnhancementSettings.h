@@ -499,6 +499,11 @@ struct EnhancementSettings {
     // chosen one would miss its refresh or the budget (LivePresentationTiming.h).
     // A global control kept in shell preferences.
     bool vfgAutoRegulate=false;
+    // Motion blur along the optical flow on every output frame, after frame generation.
+    // A global control kept in shell preferences; on/off rebuilds (the flow session), the
+    // shutter is live.
+    bool motionBlur=false;
+    float motionBlurShutter=0.5f; // share of one output frame the virtual shutter is open
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -672,6 +677,7 @@ struct EnhancementSettings {
         if(nr&&nrLayerCount&&!activeNrLayerCount())return "enabled NR stack has no active layer";
         if(frameGenerationBackend<FrameGenerationBackend::Dlss||frameGenerationBackend>FrameGenerationBackend::AmdFrc)return "invalid frame generation backend";
         if(vfgQuality>=kVfgQualityCount)return "invalid VFG quality";
+        if(!(motionBlurShutter>=0.05f&&motionBlurShutter<=1.0f))return "invalid motion blur shutter";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.

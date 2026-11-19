@@ -151,6 +151,8 @@ struct EnhanceGraphDesc {
     uint32_t vfgQuality=1;
     bool vfgAsyncSubmission=false; // preview-only; export retains synchronous SDK verdicts
     bool vfgAutoRegulate=false;
+    bool motionBlur=false;
+    float motionBlurShutter=0.5f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -982,6 +984,12 @@ private:
     ComPtr<ID3D12Resource> exclusionVideo_[2],exclusionScratch_,exclusionUi_[2];
     ComputePass exclusionPass_;
     bool composeExclusion(ID3D12GraphicsCommandList*,unsigned outputIndex,unsigned rawParity,bool ui);
+    // Motion blur (after FG): real frames into their own textures, generated ones in place.
+    ComputePass motionBlurPass_;
+    ComPtr<ID3D12Resource> motionBlurVideo_[2],motionBlurScratch_;
+    bool motionBlurActive()const{return desc_.motionBlur&&!desc_.stillImage;}
+    void applyMotionBlur(ID3D12GraphicsCommandList*,unsigned outputIndex,float length);
+    ID3D12Resource* motionBlurSource(unsigned outputIndex)const;
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;

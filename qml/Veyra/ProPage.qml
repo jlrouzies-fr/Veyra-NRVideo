@@ -1829,6 +1829,29 @@ VPage {
                                 }
                             }
                             VRow {
+                                label: qsTr("动态模糊")
+                                hint: qsTr("沿光流方向模糊每一帧（包括补出的帧），像相机快门那样；需要光流，开关会重建画面管线")
+                                VSwitch {
+                                    objectName: "list-motion-blur"
+                                    checked: veyra.motionBlur
+                                    onToggled: checked => veyra.motionBlur = checked
+                                }
+                            }
+                            VRow {
+                                label: qsTr("快门")
+                                visible: veyra.motionBlur
+                                hint: qsTr("快门在一帧里打开的比例：越大越模糊")
+                                VSlider {
+                                    objectName: "list-motion-blur-shutter"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 50
+                                    from: 5; to: 100; stepSize: 5
+                                    value: veyra.motionBlurShutter
+                                    onMoved: value => veyra.motionBlurShutter = Math.round(value)
+                                }
+                            }
+                            VRow {
                                 label: qsTr("严格补帧节奏")
                                 hint: qsTr("帧同步 · 默认关闭")
                                 VSwitch {

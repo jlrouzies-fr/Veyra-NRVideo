@@ -246,6 +246,29 @@ void QmlPlayerBridge::setVfgAutoRegulate(bool value) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "VFG auto regulation not saved");
     emit settingsChanged();
 }
+// Motion blur after frame generation: global controls kept in shell preferences, like
+// VFG auto regulation. On/off rebuilds the graph (it needs the optical flow); the shutter is live.
+bool QmlPlayerBridge::motionBlur() const { return settings().motionBlur; }
+void QmlPlayerBridge::setMotionBlur(bool value) {
+    auto s = settings();
+    if (s.motionBlur == value) return;
+    s.motionBlur = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受动态模糊，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("motionBlur")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "motion blur not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::motionBlurShutter() const { return int(std::lround(settings().motionBlurShutter * 100.0f)); }
+void QmlPlayerBridge::setMotionBlurShutter(int percent) {
+    percent = std::clamp(percent, 5, 100);
+    auto s = settings();
+    if (int(std::lround(s.motionBlurShutter * 100.0f)) == percent) return;
+    s.motionBlurShutter = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受动态模糊，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("motionBlurShutter")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "motion blur shutter not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

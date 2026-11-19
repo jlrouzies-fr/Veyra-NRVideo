@@ -25492,6 +25492,46 @@
    "en": "This video has no danmaku",
    "ja": "この動画には弾幕がありません",
    "ko": "이 동영상에는 탄막이 없습니다"
+  },
+  {
+   "zh": "动态模糊",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "動態模糊",
+   "en": "Motion blur",
+   "ja": "モーションブラー",
+   "ko": "모션 블러"
+  },
+  {
+   "zh": "沿光流方向模糊每一帧（包括补出的帧），像相机快门那样；需要光流，开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "沿光流方向模糊每一幀（包括補出的幀），像相機快門那樣；需要光流，開關會重建畫面管線",
+   "en": "Blurs every frame (generated ones too) along the optical flow, like a camera shutter. Needs optical flow; switching it rebuilds the picture pipeline",
+   "ja": "オプティカルフローの方向に沿って各フレーム（生成フレームを含む）をカメラのシャッターのようにぼかします。オプティカルフローが必要で、切り替えると映像パイプラインを再構築します",
+   "ko": "광학 흐름 방향을 따라 모든 프레임(생성된 프레임 포함)을 카메라 셔터처럼 흐리게 합니다. 광학 흐름이 필요하며, 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "快门",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "快門",
+   "en": "Shutter",
+   "ja": "シャッター",
+   "ko": "셔터"
+  },
+  {
+   "zh": "快门在一帧里打开的比例：越大越模糊",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "快門在一幀裡打開的比例：越大越模糊",
+   "en": "How much of each frame the shutter stays open: higher is blurrier",
+   "ja": "1 フレームのうちシャッターが開いている割合：大きいほどぼけます",
+   "ko": "한 프레임 동안 셔터가 열려 있는 비율: 클수록 더 흐려집니다"
+  },
+  {
+   "zh": "引擎未接受动态模糊，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受動態模糊，原設定保留",
+   "en": "The engine did not accept motion blur; the previous setting is kept",
+   "ja": "エンジンがモーションブラーを受け付けませんでした。以前の設定を維持します",
+   "ko": "엔진이 모션 블러를 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }

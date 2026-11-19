@@ -303,6 +303,15 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             const bool on = p.value(QStringLiteral("vfgAutoRegulate")).toBool();
             if (s.vfgAutoRegulate != on) { s.vfgAutoRegulate = on; changed = true; }
         }
+        if (p.contains(QStringLiteral("motionBlur"))) {
+            const bool on = p.value(QStringLiteral("motionBlur")).toBool();
+            if (s.motionBlur != on) { s.motionBlur = on; changed = true; }
+        }
+        if (p.contains(QStringLiteral("motionBlurShutter"))) {
+            const int percent = std::clamp(p.value(QStringLiteral("motionBlurShutter")).toInt(), 5, 100);
+            const float shutter = float(percent) / 100.0f;
+            if (s.motionBlurShutter != shutter) { s.motionBlurShutter = shutter; changed = true; }
+        }
         if (!defaultFlowApplied && p.contains(QStringLiteral("contentRate"))) {
             const int rate = p.value(QStringLiteral("contentRate")).toInt();
             if(rate>=0&&rate<=int(engine::ContentRate::Capture60To30)){
