@@ -25668,6 +25668,46 @@
    "en": "The engine did not accept detail match; the previous setting is kept",
    "ja": "エンジンがディテール合わせを受け付けませんでした。以前の設定を維持します",
    "ko": "엔진이 디테일 맞춤을 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "Psycho 色调映射",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "Psycho 色調映射",
+   "en": "Psycho tone mapping",
+   "ja": "Psycho トーンマッピング",
+   "ko": "Psycho 톤 매핑"
+  },
+  {
+   "zh": "在补帧之前对每个真实帧做 Psycho 色调映射（RenoDX）：中灰不变，高光平滑压向所选峰值并保持色相，用于游戏高光过强时；仅限 HDR 输出。开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "在補幀之前對每個真實幀做 Psycho 色調映射（RenoDX）：中灰不變，高光平滑壓向所選峰值並保持色相，用於遊戲高光過強時；僅限 HDR 輸出。開關會重建畫面管線",
+   "en": "Psycho tone mapping (RenoDX) on every real frame before frame generation: mid-grey stays put, highlights roll off smoothly toward the chosen peak with their hue kept, for games whose highlights are too strong. HDR output only. Switching it rebuilds the picture pipeline",
+   "ja": "フレーム生成の前に各実フレームへ Psycho トーンマッピング（RenoDX）をかけます。中間グレーはそのまま、ハイライトは色相を保ったまま選んだピークへ滑らかに圧縮され、ハイライトが強すぎるゲーム向けです。HDR 出力のみ。切り替えると映像パイプラインを再構築します",
+   "ko": "프레임 생성 전에 모든 실제 프레임에 Psycho 톤 매핑(RenoDX)을 적용합니다. 중간 회색은 그대로 두고, 하이라이트는 색상을 유지한 채 선택한 피크 쪽으로 부드럽게 압축하며, 하이라이트가 너무 강한 게임용입니다. HDR 출력 전용. 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "峰值亮度",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "峰值亮度",
+   "en": "Peak brightness",
+   "ja": "ピーク輝度",
+   "ko": "피크 밝기"
+  },
+  {
+   "zh": "高光压缩到的最高亮度（尼特）：越低高光越柔和",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "高光壓縮到的最高亮度（尼特）：越低高光越柔和",
+   "en": "Brightest level highlights are compressed to (nits): lower is softer",
+   "ja": "ハイライトを圧縮する最大輝度（ニト）：低いほど柔らかくなります",
+   "ko": "하이라이트를 압축할 최대 밝기(니트): 낮을수록 부드럽습니다"
+  },
+  {
+   "zh": "引擎未接受 Psycho 色调映射，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受 Psycho 色調映射，原設定保留",
+   "en": "The engine did not accept Psycho tone mapping; the previous setting is kept",
+   "ja": "エンジンが Psycho トーンマッピングを受け付けませんでした。以前の設定を維持します",
+   "ko": "엔진이 Psycho 톤 매핑을 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }

@@ -347,6 +347,14 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             const float strength = float(percent) / 100.0f;
             if (s.detailMatchStrength != strength) { s.detailMatchStrength = strength; changed = true; }
         }
+        if (p.contains(QStringLiteral("psycho"))) {
+            const bool on = p.value(QStringLiteral("psycho")).toBool();
+            if (s.psycho != on) { s.psycho = on; changed = true; }
+        }
+        if (p.contains(QStringLiteral("psychoPeakNits"))) {
+            const float nits = float(std::clamp(p.value(QStringLiteral("psychoPeakNits")).toInt(), 100, 4000));
+            if (s.psychoPeakNits != nits) { s.psychoPeakNits = nits; changed = true; }
+        }
         if (!defaultFlowApplied && p.contains(QStringLiteral("contentRate"))) {
             const int rate = p.value(QStringLiteral("contentRate")).toInt();
             if(rate>=0&&rate<=int(engine::ContentRate::Capture60To30)){

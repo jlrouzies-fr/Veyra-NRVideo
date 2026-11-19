@@ -521,6 +521,10 @@ struct EnhancementSettings {
     // where the gap remains. Shell preference; on/off rebuilds, strength (real-frame share) live.
     bool detailMatch=false;
     float detailMatchStrength=0.7f; // 0..1
+    // Psycho tone mapping (RenoDX psychotm_test22) on real frames before frame generation, HDR
+    // output only. Shell preference; on/off rebuilds, peak live.
+    bool psycho=false;
+    float psychoPeakNits=400.0f;
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -699,6 +703,7 @@ struct EnhancementSettings {
         if(!(debandThreshold>=1.0f&&debandThreshold<=8.0f))return "invalid deband threshold";
         if(!(sharpenStrength>=0.0f&&sharpenStrength<=1.0f))return "invalid sharpen strength";
         if(!(detailMatchStrength>=0.0f&&detailMatchStrength<=1.0f))return "invalid detail match strength";
+        if(!(psychoPeakNits>=100.0f&&psychoPeakNits<=4000.0f))return "invalid psycho peak";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.

@@ -548,6 +548,9 @@ class QmlPlayerBridge : public QObject {
     // 补帧细节匹配: EnhancementSettings::detailMatch / detailMatchStrength (percent).
     Q_PROPERTY(bool detailMatch READ detailMatch WRITE setDetailMatch NOTIFY settingsChanged)
     Q_PROPERTY(int detailMatchStrength READ detailMatchStrength WRITE setDetailMatchStrength NOTIFY settingsChanged)
+    // Psycho 色调映射: EnhancementSettings::psycho / psychoPeakNits.
+    Q_PROPERTY(bool psycho READ psycho WRITE setPsycho NOTIFY settingsChanged)
+    Q_PROPERTY(int psychoPeakNits READ psychoPeakNits WRITE setPsychoPeakNits NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1261,6 +1264,10 @@ public:
     void setDetailMatch(bool value);
     int detailMatchStrength() const;
     void setDetailMatchStrength(int percent);
+    bool psycho() const;
+    void setPsycho(bool value);
+    int psychoPeakNits() const;
+    void setPsychoPeakNits(int nits);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

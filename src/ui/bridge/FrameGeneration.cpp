@@ -361,6 +361,29 @@ void QmlPlayerBridge::setDetailMatchStrength(int percent) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "detail match strength not saved");
     emit settingsChanged();
 }
+// Psycho tone mapping: shell preferences like motion blur. On/off rebuilds the graph; the
+// peak is live.
+bool QmlPlayerBridge::psycho() const { return settings().psycho; }
+void QmlPlayerBridge::setPsycho(bool value) {
+    auto s = settings();
+    if (s.psycho == value) return;
+    s.psycho = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受 Psycho 色调映射，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("psycho")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "psycho not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::psychoPeakNits() const { return int(std::lround(settings().psychoPeakNits)); }
+void QmlPlayerBridge::setPsychoPeakNits(int nits) {
+    nits = std::clamp(nits, 100, 4000);
+    auto s = settings();
+    if (int(std::lround(s.psychoPeakNits)) == nits) return;
+    s.psychoPeakNits = float(nits);
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受 Psycho 色调映射，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("psychoPeakNits")] = nits;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "psycho peak not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

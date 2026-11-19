@@ -1944,6 +1944,29 @@ VPage {
                                 }
                             }
                             VRow {
+                                label: qsTr("Psycho 色调映射")
+                                hint: qsTr("在补帧之前对每个真实帧做 Psycho 色调映射（RenoDX）：中灰不变，高光平滑压向所选峰值并保持色相，用于游戏高光过强时；仅限 HDR 输出。开关会重建画面管线")
+                                VSwitch {
+                                    objectName: "list-psycho"
+                                    checked: veyra.psycho
+                                    onToggled: checked => veyra.psycho = checked
+                                }
+                            }
+                            VRow {
+                                label: qsTr("峰值亮度")
+                                visible: veyra.psycho
+                                hint: qsTr("高光压缩到的最高亮度（尼特）：越低高光越柔和")
+                                VSlider {
+                                    objectName: "list-psycho-peak"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 400
+                                    from: 200; to: 2000; stepSize: 50
+                                    value: veyra.psychoPeakNits
+                                    onMoved: value => veyra.psychoPeakNits = Math.round(value)
+                                }
+                            }
+                            VRow {
                                 label: qsTr("严格补帧节奏")
                                 hint: qsTr("帧同步 · 默认关闭")
                                 VSwitch {

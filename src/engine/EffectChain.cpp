@@ -792,6 +792,7 @@ bool requiresGraphRebuild(const EnhancementSettings& savedPrevious, const Enhanc
     if (previous.deband != next.deband) return true;
     if (previous.sharpen != next.sharpen) return true;
     if (previous.detailMatch != next.detailMatch) return true;
+    if (previous.psycho != next.psycho) return true;
     if (previous.flow != next.flow) return true;
     if (previous.captureCompatible != next.captureCompatible) return true;
     if (previous.forceSdrPreview != next.forceSdrPreview) return true;

@@ -1091,6 +1091,11 @@ bool EnhanceGraph::createResources()
     if(!createBeautyShared())return false;
     videoFrame_[0] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
     videoFrame_[1] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
+    if(psychoActive()){
+        psychoScratch_=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+        if(!psychoScratch_)return false;
+        veyra::log::info("psycho",std::format("enabled peak={:.0f} nits {}x{}",desc_.psychoPeakNits,workW_,workH_));
+    }
     if(detailMatchActive()){
         detailGroupsX_=(workW_+15)/16;detailGroupsY_=(workH_+15)/16;
         for(auto& texture:detailEnergyReal_){
@@ -2240,6 +2245,8 @@ bool EnhanceGraph::createComputePasses()
         if(!detailSoftenPass_.loadShader("DetailSoften.dxil",cs)||
            !detailSoftenPass_.create(context_.device(),cs,2*4,3,1,8,0,true))return false;
     }
+    if(psychoActive()&&(!psychoPass_.loadShader("Psycho.dxil",cs)||
+       !psychoPass_.create(context_.device(),cs,2*2,1,1,8,0,true)))return false;
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2746,6 +2753,12 @@ bool EnhanceGraph::createViews()
             if(viewsUav)makeUav(context_.device(),detailVideo_[parity].Get(),outputFormat(),cpu(detailSoftenPass_,base+3));
         }
     }
+    if(psychoActive()){
+        for(unsigned parity=0;parity<2;++parity){
+            if(viewsTex)stagedSrv(videoFrame_[parity].Get(),outputFormat(),psychoPass_,parity*2);
+            if(viewsUav)makeUav(context_.device(),psychoScratch_.Get(),outputFormat(),cpu(psychoPass_,parity*2+1));
+        }
+    }
     return true;
 }
 
@@ -2960,6 +2973,25 @@ ID3D12Resource* EnhanceGraph::postSource(unsigned output,PostStage stage)const{
 }
 
 ID3D12Resource* EnhanceGraph::motionBlurSource(unsigned output)const{return postSource(output,PostStage::MotionBlur);}
+
+// Psycho tone mapping of the finished real frame, before any frame generation reads it, so
+// generated frames are interpolated from tone-mapped frames (see Psycho.hlsl).
+void EnhanceGraph::applyPsycho(ID3D12GraphicsCommandList* list,unsigned parity){
+    if(!psychoActive())return;
+    auto* frame=videoFrame_[parity].Get();
+    tracker_.transition(list,frame,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,psychoScratch_.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    const float constants[8]={uintBits(workW_),uintBits(workH_),hdr10Output()?2.f:1.f,desc_.psychoPeakNits,203.0f,0,0,0};
+    const auto heap=psychoPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+    psychoPass_.bind(list,constants,heap+parity*2*psychoPass_.increment,heap+(parity*2+1)*psychoPass_.increment);
+    list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
+    tracker_.uavBarrier(list,psychoScratch_.Get());
+    tracker_.transition(list,psychoScratch_.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE);
+    tracker_.transition(list,frame,D3D12_RESOURCE_STATE_COPY_DEST);
+    list->CopyResource(frame,psychoScratch_.Get());
+    tracker_.transition(list,frame,D3D12_RESOURCE_STATE_COMMON);
+    tracker_.transition(list,psychoScratch_.Get(),D3D12_RESOURCE_STATE_COMMON);
+}
 
 // Fine-detail energy per 16px block of `source` into `target` (see DetailEnergy.hlsl).
 void EnhanceGraph::detailEnergy(ID3D12GraphicsCommandList* list,unsigned table,ID3D12Resource* source,ID3D12Resource* target){
@@ -4495,6 +4527,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         presentMotionValid_[parity]=(desc_.fgUsesFlow()&&!desc_.fgMotionProbe?haveFlow:prevValid_)&&!reset;
         motionPreviousSource_[parity]=previousSource_;
     }
+    applyPsycho(list,parity);
     previousSource_=sourceFrameId;
     const bool fgBackendAvailable=fgEnabled_&&fgCreated();
     const unsigned fgMultiplier=previewMultiplier&&fgBackendAvailable?std::clamp(previewMultiplier,2u,desc_.fgMultiplier):desc_.fgMultiplier;
@@ -4879,6 +4912,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     if(s.deband!=desc_.deband)return false;
     if(s.sharpen!=desc_.sharpen)return false;
     if(s.detailMatch!=desc_.detailMatch)return false;
+    if(s.psycho!=desc_.psycho)return false;
     if((s.nrHoldStrength>0.0f)!=(desc_.nrHoldStrength>0.0f))return false;
     // NR inference reuse: a preview graph allocates its pass only when built
     // with reuse on, so on/off rebuilds; Auto and the manual ratios are live.
@@ -4937,6 +4971,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.debandThreshold=s.debandThreshold;
     desc_.sharpenStrength=s.sharpenStrength;
     desc_.detailMatchStrength=s.detailMatchStrength;
+    desc_.psychoPeakNits=s.psychoPeakNits;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
@@ -5227,6 +5262,7 @@ void EnhanceGraph::shutdown()
     for(auto& r:detailEnergyReal_)r.Reset();
     detailEnergyGen_.Reset();detailEnergyGenLast_.Reset();detailScratch_.Reset();
     for(auto& r:detailVideo_)r.Reset();
+    psychoPass_={};psychoScratch_.Reset();
     for(auto& r:exclusionVideo_)r.Reset();
     for(auto& r:exclusionUi_)r.Reset();
     for(auto& r:sourceReferences_)r.Reset();for(auto& r:baseReferences_)r.Reset();workRgba_.Reset();

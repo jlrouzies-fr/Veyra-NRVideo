@@ -161,6 +161,8 @@ struct EnhanceGraphDesc {
     float sharpenStrength=0.4f;
     bool detailMatch=false;
     float detailMatchStrength=0.7f;
+    bool psycho=false;
+    float psychoPeakNits=400.0f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -1030,6 +1032,11 @@ private:
     void detailEnergy(ID3D12GraphicsCommandList*,unsigned table,ID3D12Resource* source,ID3D12Resource* target);
     void applyDetailReal(ID3D12GraphicsCommandList*,unsigned parity);
     void applyDetailGenerated(ID3D12GraphicsCommandList*,unsigned generatedSlot,bool reset);
+    // Psycho tone mapping, in place on each real frame before frame generation (HDR output only).
+    ComputePass psychoPass_;
+    ComPtr<ID3D12Resource> psychoScratch_;
+    bool psychoActive()const{return desc_.psycho&&!desc_.stillImage&&(hdr10Output()||desc_.hdrOutput);}
+    void applyPsycho(ID3D12GraphicsCommandList*,unsigned parity);
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;
