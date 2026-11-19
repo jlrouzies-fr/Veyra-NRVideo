@@ -338,6 +338,29 @@ void QmlPlayerBridge::setSharpenStrength(int percent) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "sharpen strength not saved");
     emit settingsChanged();
 }
+// Dynamic anti-vignette: shell preferences like motion blur. On/off rebuilds the graph
+// (it needs the optical flow); the strength is live.
+bool QmlPlayerBridge::antiVignette() const { return settings().antiVignette; }
+void QmlPlayerBridge::setAntiVignette(bool value) {
+    auto s = settings();
+    if (s.antiVignette == value) return;
+    s.antiVignette = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受动态去暗角，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("antiVignette")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "anti-vignette not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::antiVignetteStrength() const { return int(std::lround(settings().antiVignetteStrength * 100.0f)); }
+void QmlPlayerBridge::setAntiVignetteStrength(int percent) {
+    percent = std::clamp(percent, 0, 150);
+    auto s = settings();
+    if (int(std::lround(s.antiVignetteStrength * 100.0f)) == percent) return;
+    s.antiVignetteStrength = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受动态去暗角，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("antiVignetteStrength")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "anti-vignette strength not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

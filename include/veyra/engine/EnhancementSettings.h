@@ -516,6 +516,10 @@ struct EnhancementSettings {
     // on/off rebuilds (own textures), strength live.
     bool sharpen=false;
     float sharpenStrength=0.4f; // 0..1
+    // Dynamic anti-vignette: learns screen-fixed darkening from motion (optical flow) and undoes
+    // it on every output frame. Shell preference; on/off rebuilds (needs the flow), strength live.
+    bool antiVignette=false;
+    float antiVignetteStrength=1.0f; // 0..1.5
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -693,6 +697,7 @@ struct EnhancementSettings {
         if(!(fgHighlightStrength>=0.0f&&fgHighlightStrength<=1.0f))return "invalid highlight clamp strength";
         if(!(debandThreshold>=1.0f&&debandThreshold<=8.0f))return "invalid deband threshold";
         if(!(sharpenStrength>=0.0f&&sharpenStrength<=1.0f))return "invalid sharpen strength";
+        if(!(antiVignetteStrength>=0.0f&&antiVignetteStrength<=1.5f))return "invalid anti-vignette strength";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.
