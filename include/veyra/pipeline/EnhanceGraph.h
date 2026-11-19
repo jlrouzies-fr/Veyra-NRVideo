@@ -988,7 +988,7 @@ private:
     ComputePass motionBlurPass_;
     ComPtr<ID3D12Resource> motionBlurVideo_[2],motionBlurScratch_;
     bool motionBlurActive()const{return desc_.motionBlur&&!desc_.stillImage;}
-    void applyMotionBlur(ID3D12GraphicsCommandList*,unsigned outputIndex,float length);
+    void applyMotionBlur(ID3D12GraphicsCommandList*,unsigned outputIndex,unsigned parity,float length);
     ID3D12Resource* motionBlurSource(unsigned outputIndex)const;
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};

@@ -2184,7 +2184,7 @@ bool EnhanceGraph::createComputePasses()
     if(desc_.exclusion.enabled&&(!exclusionPass_.loadShader("EffectExclusion.dxil",cs)||
        !exclusionPass_.create(context_.device(),cs,kOutputPoolSlots*8,2,2,24,0,true)))return false;
     if(motionBlurActive()&&(!motionBlurPass_.loadShader("MotionBlur.dxil",cs)||
-       !motionBlurPass_.create(context_.device(),cs,kOutputPoolSlots*3,2,1,8,0,true)))return false;
+       !motionBlurPass_.create(context_.device(),cs,kOutputPoolSlots*2*5,4,1,24,0,true)))return false;
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2626,11 +2626,15 @@ bool EnhanceGraph::createViews()
         }
     }
     if(motionBlurActive()){
-        for(unsigned output=0;output<kOutputPoolSlots;++output){
-            const unsigned base=output*3;
+        // One table per (output slot, parity of the current real frame): frame, flow,
+        // current and previous real frames (the HUD still test), then the destination.
+        for(unsigned output=0;output<kOutputPoolSlots;++output)for(unsigned parity=0;parity<2;++parity){
+            const unsigned base=(output*2+parity)*5;
             if(viewsTex)stagedSrv(motionBlurSource(output),outputFormat(),motionBlurPass_,base);
             if(viewsTex)stagedSrv(baseFlow_.Get(),DXGI_FORMAT_R16G16_FLOAT,motionBlurPass_,base+1);
-            if(viewsUav)makeUav(context_.device(),output<2?motionBlurVideo_[output].Get():motionBlurScratch_.Get(),outputFormat(),cpu(motionBlurPass_,base+2));
+            if(viewsTex)stagedSrv(videoFrame_[parity].Get(),outputFormat(),motionBlurPass_,base+2);
+            if(viewsTex)stagedSrv(videoFrame_[1-parity].Get(),outputFormat(),motionBlurPass_,base+3);
+            if(viewsUav)makeUav(context_.device(),output<2?motionBlurVideo_[output].Get():motionBlurScratch_.Get(),outputFormat(),cpu(motionBlurPass_,base+4));
         }
     }
     return true;
@@ -2846,7 +2850,7 @@ ID3D12Resource* EnhanceGraph::motionBlurSource(unsigned output)const{
 // pixels, one source frame). Real frames go to motionBlurVideo_ (the presented texture;
 // FG still reads the sharp videoFrame_), generated frames are blurred in place. With no
 // valid flow this frame (first frame, reset), a real frame is copied unchanged.
-void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned output,float length){
+void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned output,unsigned parity,float length){
     if(!motionBlurActive())return;
     if(!frameFlowValid_)length=0;
     if(output>=2&&length<=0)return;
@@ -2854,11 +2858,20 @@ void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned outp
     auto* destination=output<2?motionBlurVideo_[output].Get():motionBlurScratch_.Get();
     tracker_.transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     tracker_.transition(list,baseFlow_.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    for(auto* real:{videoFrame_[parity].Get(),videoFrame_[1-parity].Get()})
+        if(real!=source)tracker_.transition(list,real,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    const float constants[8]={uintBits(workW_),uintBits(workH_),length,0.04f*float(workW_),0.75f,0,0,0};
+    // Still tolerance 0.02 (about 5/255): pixels the last two real frames agree on (HUD,
+    // subtitles) stay sharp; the user's protected regions are never blurred.
+    float constants[24]={uintBits(workW_),uintBits(workH_),length,0.04f*float(workW_),0.75f,0.02f,
+        desc_.exclusion.enabled?1.f:0.f,desc_.exclusion.featherPixels};
+    for(unsigned i=0;i<4;++i){
+        const auto region=engine::protectionConstants(desc_.exclusion.regions[i]);
+        std::copy(region.begin(),region.end(),constants+8+i*4);
+    }
     const auto heap=motionBlurPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
-    const auto base=output*3;
-    motionBlurPass_.bind(list,constants,heap+base*motionBlurPass_.increment,heap+(base+2)*motionBlurPass_.increment);
+    const auto base=(output*2+parity)*5;
+    motionBlurPass_.bind(list,constants,heap+base*motionBlurPass_.increment,heap+(base+4)*motionBlurPass_.increment);
     list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
     tracker_.uavBarrier(list,destination);
     if(output>=2){
@@ -2867,6 +2880,8 @@ void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned outp
         list->CopyResource(source,destination);
     }
     tracker_.transition(list,source,D3D12_RESOURCE_STATE_COMMON);
+    for(auto* real:{videoFrame_[parity].Get(),videoFrame_[1-parity].Get()})
+        if(real!=source)tracker_.transition(list,real,D3D12_RESOURCE_STATE_COMMON);
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
 }
 
@@ -4277,7 +4292,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     if(!composeExclusion(list,parity,parity,presentSinkFg()))return false;
     // A real frame is shown for 1 / outputMultiplier of the pair with FG, else for all of it.
     const float motionBlurLength=desc_.motionBlurShutter/float(runFg&&fgCreated()?std::max(1u,outputMultiplier):1u);
-    applyMotionBlur(list,parity,motionBlurLength);
+    applyMotionBlur(list,parity,parity,motionBlurLength);
     if(!runFg)gpuTimer_.resolve(list);
     if (!submitGraph(slot)) return false;
     if(!runFg)gpuTimer_.submitted(ring_.lastSignaledValue());
@@ -4297,7 +4312,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             const bool copied=amfFrc_->copyOutput(flist,genFrame_[generatedSlot].Get());
             if(!copied&&!resetFg){veyra::log::error("amf-frc","AMF returned no interpolated frame for this pair");failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
-            if(!resetFg)applyMotionBlur(flist,generatedSlot+2,motionBlurLength);
+            if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
             gpuTimer_.mark(flist,GpuStage::Fg1,true);gpuTimer_.mark(flist,GpuStage::FgBatch,true);gpuTimer_.resolve(flist);
             if(!submitGraph(slot))return false;
@@ -4323,7 +4338,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COPY_DEST);
             if(!vfgBackend_->copyOutput(flist,genFrame_[generatedSlot].Get(),generatedSlot)){failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
-            if(!resetFg)applyMotionBlur(flist,generatedSlot+2,motionBlurLength);
+            if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
             const auto timingStage=GpuStage(unsigned(GpuStage::Fg1)+sub-1);gpuTimer_.mark(flist,timingStage,true);
             if(sub<fgCalls)gpuTimer_.mark(flist,GpuStage(unsigned(GpuStage::Fg1)+sub));
@@ -4406,7 +4421,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         flist->CopyBufferRegion(fgDisableReadback_[generatedSlot].Get(),0,fgDisable_[parity].Get(),0,4);
         }
         if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
-        if(!resetFg)applyMotionBlur(flist,generatedSlot+2,motionBlurLength);
+        if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
         tracker_.transition(flist,videoFrame_[parity].Get(),D3D12_RESOURCE_STATE_COMMON);
         tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
         tracker_.transition(flist,depthTex_.Get(),D3D12_RESOURCE_STATE_COMMON);
