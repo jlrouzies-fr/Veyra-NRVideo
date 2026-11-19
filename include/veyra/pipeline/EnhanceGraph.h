@@ -159,8 +159,6 @@ struct EnhanceGraphDesc {
     float debandThreshold=3.0f;
     bool sharpen=false;
     float sharpenStrength=0.4f;
-    bool antiVignette=false;
-    float antiVignetteStrength=1.0f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -1017,18 +1015,6 @@ private:
     ComPtr<ID3D12Resource> sharpenVideo_[2],sharpenScratch_;
     bool sharpenActive()const{return desc_.sharpen&&!desc_.stillImage;}
     void applySharpen(ID3D12GraphicsCommandList*,unsigned outputIndex);
-    // Post passes on output frames, in order. postSource: the texture holding a real output
-    // frame after every pass before `stage` (generated frames are processed in place).
-    enum class PostStage{Vignette,Sharpen,MotionBlur,Deband,Present};
-    ID3D12Resource* postSource(unsigned outputIndex,PostStage stage)const;
-    // Dynamic anti-vignette: measure + solve once per real frame, apply on every output frame.
-    ComputePass vignetteMeasurePass_,vignetteSolvePass_,vignetteApplyPass_;
-    ComPtr<ID3D12Resource> vignettePartial_,vignetteState_,vignetteGain_,vignetteVideo_[2],vignetteScratch_;
-    uint32_t vignetteGroupsX_=0,vignetteGroupsY_=0,vignetteTileGroups_=0,vignetteTilesX_=0,vignetteTilesY_=0;
-    bool vignetteReset_=true;
-    bool antiVignetteActive()const{return desc_.antiVignette&&!desc_.stillImage;}
-    void updateVignette(ID3D12GraphicsCommandList*,unsigned parity);
-    void applyVignette(ID3D12GraphicsCommandList*,unsigned outputIndex);
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;

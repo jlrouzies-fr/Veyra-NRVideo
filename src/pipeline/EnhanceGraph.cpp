@@ -1091,27 +1091,6 @@ bool EnhanceGraph::createResources()
     if(!createBeautyShared())return false;
     videoFrame_[0] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
     videoFrame_[1] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
-    if(antiVignetteActive()){
-        // Tiles of tileGroups x tileGroups 16-px groups (96 px at 4K), at most 40 x 24 of them
-        // so the solve fits one 1024-thread group.
-        vignetteGroupsX_=(workW_+15)/16;vignetteGroupsY_=(workH_+15)/16;
-        vignetteTileGroups_=std::max({6u,(vignetteGroupsX_+39)/40,(vignetteGroupsY_+23)/24});
-        vignetteTilesX_=(vignetteGroupsX_+vignetteTileGroups_-1)/vignetteTileGroups_;
-        vignetteTilesY_=(vignetteGroupsY_+vignetteTileGroups_-1)/vignetteTileGroups_;
-        vignettePartial_=makeTexture(context_.device(),vignetteGroupsX_*3,vignetteGroupsY_,DXGI_FORMAT_R32G32B32A32_FLOAT,true);
-        vignetteState_=makeTexture(context_.device(),vignetteTilesX_*2,vignetteTilesY_,DXGI_FORMAT_R32G32B32A32_FLOAT,true);
-        vignetteGain_=makeTexture(context_.device(),vignetteTilesX_,vignetteTilesY_,DXGI_FORMAT_R32_FLOAT,true);
-        if(!vignettePartial_||!vignetteState_||!vignetteGain_)return false;
-        for(auto& texture:vignetteVideo_){
-            texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
-            if(!texture)return false;
-        }
-        vignetteScratch_=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
-        if(!vignetteScratch_)return false;
-        vignetteReset_=true;
-        veyra::log::info("anti-vignette",std::format("enabled strength={:.2f} tiles={}x{} of {} px",
-            desc_.antiVignetteStrength,vignetteTilesX_,vignetteTilesY_,vignetteTileGroups_*16));
-    }
     if(sharpenActive()){
         for(auto& texture:sharpenVideo_){
             texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
@@ -1340,7 +1319,7 @@ bool EnhanceGraph::initNvof()
     const bool inGraphFgFlow=fgEnabled_&&desc_.fgUsesFlow()&&
         (desc_.frameGenerationBackend==engine::FrameGenerationBackend::Dlss||desc_.frameGenerationBackend==engine::FrameGenerationBackend::Anr||engine::fsrFrameGeneration(desc_.frameGenerationBackend));
     // DLAA takes its motion from the same flow.
-    if (desc_.noFeatures || !(nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || inGraphFgFlow || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive() || highlightClampActive() || antiVignetteActive())) {
+    if (desc_.noFeatures || !(nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || inGraphFgFlow || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive() || highlightClampActive())) {
         mvecSource_="zero motion (no external flow consumer)";
         veyra::log::info("graph", "optical-flow session skipped: no external motion consumer");
         return true;
@@ -2235,14 +2214,6 @@ bool EnhanceGraph::createComputePasses()
        !debandPass_.create(context_.device(),cs,kOutputPoolSlots*2,1,1,8,0,true)))return false;
     if(sharpenActive()&&(!sharpenPass_.loadShader("Sharpen.dxil",cs)||
        !sharpenPass_.create(context_.device(),cs,kOutputPoolSlots*2,1,1,24,0,true)))return false;
-    if(antiVignetteActive()){
-        if(!vignetteMeasurePass_.loadShader("VignetteMeasure.dxil",cs)||
-           !vignetteMeasurePass_.create(context_.device(),cs,2*4,3,1,8,0,true))return false;
-        if(!vignetteSolvePass_.loadShader("VignetteSolve.dxil",cs)||
-           !vignetteSolvePass_.create(context_.device(),cs,3,1,2,16,0,true))return false;
-        if(!vignetteApplyPass_.loadShader("VignetteApply.dxil",cs)||
-           !vignetteApplyPass_.create(context_.device(),cs,kOutputPoolSlots*3,2,1,24,0,true))return false;
-    }
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2716,27 +2687,9 @@ bool EnhanceGraph::createViews()
     if(sharpenActive()){
         for(unsigned output=0;output<kOutputPoolSlots;++output){
             const unsigned base=output*2;
-            auto* source=postSource(output,PostStage::Sharpen);
+            auto* source=output>=2?genFrame_[output-2].Get():exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
             if(viewsTex)stagedSrv(source,outputFormat(),sharpenPass_,base);
             if(viewsUav)makeUav(context_.device(),output<2?sharpenVideo_[output].Get():sharpenScratch_.Get(),outputFormat(),cpu(sharpenPass_,base+1));
-        }
-    }
-    if(antiVignetteActive()){
-        for(unsigned parity=0;parity<2;++parity){
-            const unsigned base=parity*4;
-            if(viewsTex)stagedSrv(videoFrame_[parity].Get(),outputFormat(),vignetteMeasurePass_,base);
-            if(viewsTex)stagedSrv(videoFrame_[1-parity].Get(),outputFormat(),vignetteMeasurePass_,base+1);
-            if(viewsTex)stagedSrv(baseFlow_.Get(),DXGI_FORMAT_R16G16_FLOAT,vignetteMeasurePass_,base+2);
-            if(viewsUav)makeUav(context_.device(),vignettePartial_.Get(),DXGI_FORMAT_R32G32B32A32_FLOAT,cpu(vignetteMeasurePass_,base+3));
-        }
-        if(viewsTex)stagedSrv(vignettePartial_.Get(),DXGI_FORMAT_R32G32B32A32_FLOAT,vignetteSolvePass_,0);
-        if(viewsUav)makeUav(context_.device(),vignetteState_.Get(),DXGI_FORMAT_R32G32B32A32_FLOAT,cpu(vignetteSolvePass_,1));
-        if(viewsUav)makeUav(context_.device(),vignetteGain_.Get(),DXGI_FORMAT_R32_FLOAT,cpu(vignetteSolvePass_,2));
-        for(unsigned output=0;output<kOutputPoolSlots;++output){
-            const unsigned base=output*3;
-            if(viewsTex)stagedSrv(postSource(output,PostStage::Vignette),outputFormat(),vignetteApplyPass_,base);
-            if(viewsTex)stagedSrv(vignetteGain_.Get(),DXGI_FORMAT_R32_FLOAT,vignetteApplyPass_,base+1);
-            if(viewsUav)makeUav(context_.device(),output<2?vignetteVideo_[output].Get():vignetteScratch_.Get(),outputFormat(),cpu(vignetteApplyPass_,base+2));
         }
     }
     return true;
@@ -2943,82 +2896,10 @@ bool EnhanceGraph::composeExclusion(ID3D12GraphicsCommandList* list,unsigned out
     return true;
 }
 
-ID3D12Resource* EnhanceGraph::postSource(unsigned output,PostStage stage)const{
+ID3D12Resource* EnhanceGraph::motionBlurSource(unsigned output)const{
     if(output>=2)return genFrame_[output-2].Get();
-    if(stage>PostStage::Deband&&debandVideo_[output])return debandVideo_[output].Get();
-    if(stage>PostStage::MotionBlur&&motionBlurVideo_[output])return motionBlurVideo_[output].Get();
-    if(stage>PostStage::Sharpen&&sharpenVideo_[output])return sharpenVideo_[output].Get();
-    if(stage>PostStage::Vignette&&vignetteVideo_[output])return vignetteVideo_[output].Get();
+    if(sharpenVideo_[output])return sharpenVideo_[output].Get();
     return exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
-}
-
-ID3D12Resource* EnhanceGraph::motionBlurSource(unsigned output)const{return postSource(output,PostStage::MotionBlur);}
-
-// Anti-vignette measure + solve (see VignetteMeasure/VignetteSolve.hlsl), once per real frame.
-// No flow this frame (first frame, scene cut): nothing to learn, the last map stays.
-void EnhanceGraph::updateVignette(ID3D12GraphicsCommandList* list,unsigned parity){
-    if(!antiVignetteActive()||!frameFlowValid_)return;
-    auto* current=videoFrame_[parity].Get();
-    auto* previous=videoFrame_[1-parity].Get();
-    for(auto* r:{current,previous,baseFlow_.Get()})
-        tracker_.transition(list,r,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    tracker_.transition(list,vignettePartial_.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    const float mode=hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f;
-    // Too dark to measure: 2.4 nits in HDR (scRGB 0.03), 0.4% of white in SDR.
-    const float darkFloor=mode>0.5f?0.03f:0.004f;
-    const float measure[8]={uintBits(workW_),uintBits(workH_),mode,darkFloor,0,0,0,0};
-    auto heap=vignetteMeasurePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
-    const auto base=parity*4;
-    vignetteMeasurePass_.bind(list,measure,heap+base*vignetteMeasurePass_.increment,heap+(base+3)*vignetteMeasurePass_.increment);
-    list->Dispatch(vignetteGroupsX_,vignetteGroupsY_,1);
-    tracker_.uavBarrier(list,vignettePartial_.Get());
-    tracker_.transition(list,vignettePartial_.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    tracker_.transition(list,vignetteState_.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    tracker_.transition(list,vignetteGain_.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    // History decays 1.5% per real frame (about 2 s at 30 fps); boost capped at 2x; 3% dead zone.
-    const float solve[16]={uintBits(vignetteGroupsX_),uintBits(vignetteGroupsY_),uintBits(vignetteTileGroups_),uintBits(vignetteTilesX_),
-        uintBits(vignetteTilesY_),uintBits(128u),uintBits(vignetteReset_?1u:0u),0,
-        0.985f,float(vignetteTileGroups_*16),desc_.antiVignetteStrength,0.6931472f,
-        0.03f,2.0e4f,0,0};
-    heap=vignetteSolvePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
-    vignetteSolvePass_.bind(list,solve,heap,heap+vignetteSolvePass_.increment);
-    list->Dispatch(1,1,1);
-    tracker_.uavBarrier(list,vignetteState_.Get());
-    tracker_.uavBarrier(list,vignetteGain_.Get());
-    vignetteReset_=false;
-    for(auto* r:{current,previous,vignettePartial_.Get(),vignetteState_.Get(),vignetteGain_.Get()})
-        tracker_.transition(list,r,D3D12_RESOURCE_STATE_COMMON);
-}
-
-// Brighten one output frame by the learned map (see VignetteApply.hlsl).
-void EnhanceGraph::applyVignette(ID3D12GraphicsCommandList* list,unsigned output){
-    if(!antiVignetteActive())return;
-    auto* source=postSource(output,PostStage::Vignette);
-    auto* destination=output<2?vignetteVideo_[output].Get():vignetteScratch_.Get();
-    tracker_.transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    tracker_.transition(list,vignetteGain_.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    tracker_.transition(list,destination,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    // tilePixels 0 until a map exists: the frame is copied unchanged.
-    float constants[24]={uintBits(workW_),uintBits(workH_),hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f,
-        vignetteReset_?0.f:float(vignetteTileGroups_*16),uintBits(vignetteTilesX_),uintBits(vignetteTilesY_),
-        desc_.exclusion.enabled?1.f:0.f,desc_.exclusion.featherPixels};
-    for(unsigned i=0;i<4;++i){
-        const auto region=engine::protectionConstants(desc_.exclusion.regions[i]);
-        std::copy(region.begin(),region.end(),constants+8+i*4);
-    }
-    const auto heap=vignetteApplyPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
-    const auto base=output*3;
-    vignetteApplyPass_.bind(list,constants,heap+base*vignetteApplyPass_.increment,heap+(base+2)*vignetteApplyPass_.increment);
-    list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
-    tracker_.uavBarrier(list,destination);
-    if(output>=2){
-        tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COPY_SOURCE);
-        tracker_.transition(list,source,D3D12_RESOURCE_STATE_COPY_DEST);
-        list->CopyResource(source,destination);
-    }
-    tracker_.transition(list,source,D3D12_RESOURCE_STATE_COMMON);
-    tracker_.transition(list,vignetteGain_.Get(),D3D12_RESOURCE_STATE_COMMON);
-    tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
 }
 
 // Blurs one output frame along this frame's flow (baseFlow_: current->previous, work
@@ -3060,12 +2941,17 @@ void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned outp
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
 }
 
-ID3D12Resource* EnhanceGraph::debandSource(unsigned output)const{return postSource(output,PostStage::Deband);}
+ID3D12Resource* EnhanceGraph::debandSource(unsigned output)const{
+    if(output>=2)return genFrame_[output-2].Get();
+    if(motionBlurVideo_[output])return motionBlurVideo_[output].Get();
+    if(sharpenVideo_[output])return sharpenVideo_[output].Get();
+    return exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
+}
 
 // Sharpen one output frame (see Sharpen.hlsl), right after exclusion.
 void EnhanceGraph::applySharpen(ID3D12GraphicsCommandList* list,unsigned output){
     if(!sharpenActive())return;
-    auto* source=postSource(output,PostStage::Sharpen);
+    auto* source=output>=2?genFrame_[output-2].Get():exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
     auto* destination=output<2?sharpenVideo_[output].Get():sharpenScratch_.Get();
     tracker_.transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -3763,7 +3649,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     };
     // Guidance from original source-space color before SR/NR. Queue waits are GPU-side.
     bool haveFlow = false;
-    const bool runMotion = nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || (fgEnabled_&&desc_.fgUsesFlow()) || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive() || highlightClampActive() || antiVignetteActive();
+    const bool runMotion = nvofStandalone_ || (presentSinkFg()&&desc_.fgUsesFlow()) || (fgEnabled_&&desc_.fgUsesFlow()) || (srEnabled_&&desc_.srUsesFlow()&&temporalSrPass(desc_)) || dlaaRequested() || motionBlurActive() || highlightClampActive();
     if (runMotion && (gpuDis_ || amdOf_ || (nvof_ && nvof_->initialized()))) {
         const float dims[8] = {uintBits(nvofW_),uintBits(nvofH_),uintBits(nvofW_),uintBits(nvofH_),0,0,0,0};
         if (prevValid_) {
@@ -4552,8 +4438,6 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     if(!composeExclusion(list,parity,parity,presentSinkFg()))return false;
     // A real frame is shown for 1 / outputMultiplier of the pair with FG, else for all of it.
     const float motionBlurLength=desc_.motionBlurShutter/float(runFg&&fgCreated()?std::max(1u,outputMultiplier):1u);
-    updateVignette(list,parity);
-    applyVignette(list,parity);
     applySharpen(list,parity);
     applyMotionBlur(list,parity,parity,motionBlurLength);
     applyDeband(list,parity);
@@ -4577,7 +4461,6 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             if(!copied&&!resetFg){veyra::log::error("amf-frc","AMF returned no interpolated frame for this pair");failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
-            applyVignette(flist,generatedSlot+2);
             applySharpen(flist,generatedSlot+2);
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             applyDeband(flist,generatedSlot+2);
@@ -4607,7 +4490,6 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             if(!vfgBackend_->copyOutput(flist,genFrame_[generatedSlot].Get(),generatedSlot)){failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
-            applyVignette(flist,generatedSlot+2);
             applySharpen(flist,generatedSlot+2);
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             applyDeband(flist,generatedSlot+2);
@@ -4694,7 +4576,6 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         }
         if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
         if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
-        applyVignette(flist,generatedSlot+2);
         applySharpen(flist,generatedSlot+2);
         if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
         applyDeband(flist,generatedSlot+2);
@@ -4732,7 +4613,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     ++realFrameIndex_;
     out.realFrameIndex = realFrameIndex_;
     out.videoSlot = parity;
-    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=postSource(parity,PostStage::Present);real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
+    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=debandVideo_[parity]?debandVideo_[parity]:motionBlurVideo_[parity]?motionBlurVideo_[parity]:sharpenVideo_[parity]?sharpenVideo_[parity]:exclusionVideo_[parity]?exclusionVideo_[parity]:videoFrame_[parity];real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
     if(veyra::log::verboseFrameLogs())veyra::log::info("frame-batch",std::format("batch={} epoch={} revision={} source={} a={} b={} count={} realSlot={} realFence={} genSlot={} genFence={}",out.batch.batchId,epoch_,out.batch.identity.settingsRevision,out.batch.identity.sourceFrameId,out.batch.a100ns,out.batch.b100ns,out.batch.count,parity,out.videoFenceValue,out.genSlot,out.genFenceValue));
     if(pausedEligible&&lastAppliedSettings_){
         pausedNrCacheValid_=true;pausedNrFrame_=frame;pausedNrSourceId_=sourceFrameId;pausedNrPts_=ptsMs;
@@ -4875,7 +4756,6 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     if(s.fgHighlightClamp!=desc_.fgHighlightClamp)return false;
     if(s.deband!=desc_.deband)return false;
     if(s.sharpen!=desc_.sharpen)return false;
-    if(s.antiVignette!=desc_.antiVignette)return false;
     if((s.nrHoldStrength>0.0f)!=(desc_.nrHoldStrength>0.0f))return false;
     // NR inference reuse: a preview graph allocates its pass only when built
     // with reuse on, so on/off rebuilds; Auto and the manual ratios are live.
@@ -4933,7 +4813,6 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.fgHighlightStrength=s.fgHighlightStrength;
     desc_.debandThreshold=s.debandThreshold;
     desc_.sharpenStrength=s.sharpenStrength;
-    desc_.antiVignetteStrength=s.antiVignetteStrength;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
@@ -5026,7 +4905,7 @@ uint64_t EnhanceGraph::nvofNextOutValue() const
 
 ID3D12Resource* EnhanceGraph::videoFrameResource(uint32_t slot) const
 {
-    return slot<2?postSource(slot,PostStage::Present):nullptr;
+    return slot<2?(debandVideo_[slot]?debandVideo_[slot].Get():motionBlurVideo_[slot]?motionBlurVideo_[slot].Get():sharpenVideo_[slot]?sharpenVideo_[slot].Get():exclusionVideo_[slot]?exclusionVideo_[slot].Get():videoFrame_[slot].Get()):nullptr;
 }
 
 ID3D12Resource* EnhanceGraph::generatedFrameResource(uint32_t slot) const
@@ -5220,9 +5099,6 @@ void EnhanceGraph::shutdown()
     for(auto& r:debandVideo_)r.Reset();
     sharpenPass_={};sharpenScratch_.Reset();
     for(auto& r:sharpenVideo_)r.Reset();
-    vignetteMeasurePass_={};vignetteSolvePass_={};vignetteApplyPass_={};
-    vignettePartial_.Reset();vignetteState_.Reset();vignetteGain_.Reset();vignetteScratch_.Reset();
-    for(auto& r:vignetteVideo_)r.Reset();
     for(auto& r:exclusionVideo_)r.Reset();
     for(auto& r:exclusionUi_)r.Reset();
     for(auto& r:sourceReferences_)r.Reset();for(auto& r:baseReferences_)r.Reset();workRgba_.Reset();

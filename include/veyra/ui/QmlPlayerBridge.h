@@ -545,9 +545,6 @@ class QmlPlayerBridge : public QObject {
     // 锐化: EnhancementSettings::sharpen / sharpenStrength (percent).
     Q_PROPERTY(bool sharpen READ sharpen WRITE setSharpen NOTIFY settingsChanged)
     Q_PROPERTY(int sharpenStrength READ sharpenStrength WRITE setSharpenStrength NOTIFY settingsChanged)
-    // 动态去暗角: EnhancementSettings::antiVignette / antiVignetteStrength (percent).
-    Q_PROPERTY(bool antiVignette READ antiVignette WRITE setAntiVignette NOTIFY settingsChanged)
-    Q_PROPERTY(int antiVignetteStrength READ antiVignetteStrength WRITE setAntiVignetteStrength NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1257,10 +1254,6 @@ public:
     void setSharpen(bool value);
     int sharpenStrength() const;
     void setSharpenStrength(int percent);
-    bool antiVignette() const;
-    void setAntiVignette(bool value);
-    int antiVignetteStrength() const;
-    void setAntiVignetteStrength(int percent);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

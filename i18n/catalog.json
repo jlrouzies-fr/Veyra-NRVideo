@@ -25636,38 +25636,6 @@
    "en": "The engine did not accept sharpening; the previous setting is kept",
    "ja": "エンジンがシャープ化を受け付けませんでした。以前の設定を維持します",
    "ko": "엔진이 선명화를 받아들이지 않아 이전 설정을 유지합니다"
-  },
-  {
-   "zh": "动态去暗角",
-   "src": "qml/Veyra/ProPage.qml",
-   "zh-TW": "動態去暗角",
-   "en": "Dynamic anti-vignette",
-   "ja": "動的周辺減光補正",
-   "ko": "동적 비네팅 제거"
-  },
-  {
-   "zh": "从画面运动中识别固定在屏幕上的暗角（游戏加在画面上下边缘的变暗），并只提亮这些部分；夜晚和真正的暗部不受影响。需要镜头移动才能学习，需要光流，开关会重建画面管线",
-   "src": "qml/Veyra/ProPage.qml",
-   "zh-TW": "從畫面運動中識別固定在螢幕上的暗角（遊戲加在畫面上下邊緣的變暗），並只提亮這些部分；夜晚和真正的暗部不受影響。需要鏡頭移動才能學習，需要光流，開關會重建畫面管線",
-   "en": "Finds darkening fixed to the screen (the vignette a game adds at the top or bottom) from how the picture moves, and brightens only that; night scenes and genuinely dark areas are left alone. Learns while the camera moves. Needs optical flow; switching it rebuilds the picture pipeline",
-   "ja": "映像の動きから画面に固定された減光（ゲームが上下の端に加える周辺減光）を見つけ、その部分だけを明るくします。夜景や本当に暗い部分には影響しません。カメラが動いている間に学習します。オプティカルフローが必要で、切り替えると映像パイプラインを再構築します",
-   "ko": "화면 움직임에서 화면에 고정된 어두워짐(게임이 위아래 가장자리에 넣는 비네팅)을 찾아 그 부분만 밝힙니다. 밤 장면과 실제로 어두운 부분은 그대로 둡니다. 카메라가 움직이는 동안 학습합니다. 광학 흐름이 필요하며, 켜고 끄면 화면 파이프라인을 다시 만듭니다"
-  },
-  {
-   "zh": "去暗角的程度：100 为完全抵消，最多提亮一倍",
-   "src": "qml/Veyra/ProPage.qml",
-   "zh-TW": "去暗角的程度：100 為完全抵消，最多提亮一倍",
-   "en": "How much of the vignette is undone: 100 cancels it fully; at most twice as bright",
-   "ja": "周辺減光を打ち消す度合い：100 で完全に打ち消し、最大 2 倍まで明るくします",
-   "ko": "비네팅을 되돌리는 정도: 100이면 완전히 상쇄하며 최대 두 배까지 밝힙니다"
-  },
-  {
-   "zh": "引擎未接受动态去暗角，原设置保留",
-   "src": "src/ui/bridge/FrameGeneration.cpp",
-   "zh-TW": "引擎未接受動態去暗角，原設定保留",
-   "en": "The engine did not accept the dynamic anti-vignette; the previous setting is kept",
-   "ja": "エンジンが動的周辺減光補正を受け付けませんでした。以前の設定を維持します",
-   "ko": "엔진이 동적 비네팅 제거를 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }

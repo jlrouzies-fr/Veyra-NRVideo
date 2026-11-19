@@ -1747,25 +1747,6 @@ VPage {
                     }
                 }
                 VRow {
-                    label: qsTr("动态去暗角")
-                    hint: qsTr("从画面运动中识别固定在屏幕上的暗角（游戏加在画面上下边缘的变暗），并只提亮这些部分；夜晚和真正的暗部不受影响。需要镜头移动才能学习，需要光流，开关会重建画面管线")
-                    VSwitch { objectName: "node-anti-vignette"; checked: veyra.antiVignette; onToggled: checked => veyra.antiVignette = checked }
-                }
-                VRow {
-                    label: qsTr("强度")
-                    visible: veyra.antiVignette
-                    hint: qsTr("去暗角的程度：100 为完全抵消，最多提亮一倍")
-                    VSlider {
-                        objectName: "node-anti-vignette-strength"
-                        implicitWidth: 110
-                        valueFromModel: true
-                        resettable: true; defaultValue: 100
-                        from: 0; to: 150; stepSize: 10
-                        value: veyra.antiVignetteStrength
-                        onMoved: value => veyra.antiVignetteStrength = Math.round(value)
-                    }
-                }
-                VRow {
                     label: qsTr("补帧运动来源")
                     visible: veyra.fgBackendName !== "vfg"
                     hint: qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")
