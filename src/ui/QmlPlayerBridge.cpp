@@ -338,6 +338,15 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             const float strength = float(percent) / 100.0f;
             if (s.sharpenStrength != strength) { s.sharpenStrength = strength; changed = true; }
         }
+        if (p.contains(QStringLiteral("detailMatch"))) {
+            const bool on = p.value(QStringLiteral("detailMatch")).toBool();
+            if (s.detailMatch != on) { s.detailMatch = on; changed = true; }
+        }
+        if (p.contains(QStringLiteral("detailMatchStrength"))) {
+            const int percent = std::clamp(p.value(QStringLiteral("detailMatchStrength")).toInt(), 0, 100);
+            const float strength = float(percent) / 100.0f;
+            if (s.detailMatchStrength != strength) { s.detailMatchStrength = strength; changed = true; }
+        }
         if (!defaultFlowApplied && p.contains(QStringLiteral("contentRate"))) {
             const int rate = p.value(QStringLiteral("contentRate")).toInt();
             if(rate>=0&&rate<=int(engine::ContentRate::Capture60To30)){

@@ -25636,6 +25636,38 @@
    "en": "The engine did not accept sharpening; the previous setting is kept",
    "ja": "エンジンがシャープ化を受け付けませんでした。以前の設定を維持します",
    "ko": "엔진이 선명화를 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "补帧细节匹配",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "補幀細節匹配",
+   "en": "Detail match",
+   "ja": "補間フレームのディテール合わせ",
+   "ko": "보간 프레임 디테일 맞춤"
+  },
+  {
+   "zh": "补出的帧在缓慢移动时会丢失细节，画面一软一硬地闪烁（脉动）；恢复补出帧的细节，并在仍有差距处让真实帧稍微柔化，使两者一致。开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "補出的幀在緩慢移動時會遺失細節，畫面一軟一硬地閃爍（脈動）；恢復補出幀的細節，並在仍有差距處讓真實幀稍微柔化，使兩者一致。開關會重建畫面管線",
+   "en": "Generated frames lose fine detail on slow movement, so the picture pulses soft / sharp. Restores the generated frames' detail and, where a gap remains, softens the real frames slightly so they match. Switching it rebuilds the picture pipeline",
+   "ja": "生成フレームはゆっくりした動きで細部を失い、映像が柔らかい／鋭いと交互に脈打つようにちらつきます。生成フレームの細部を復元し、差が残る部分では実フレームをわずかに柔らかくして揃えます。切り替えると映像パイプラインを再構築します",
+   "ko": "생성된 프레임은 느린 움직임에서 미세한 디테일을 잃어 화면이 부드러움/선명함을 번갈아 맥동하듯 깜박입니다. 생성된 프레임의 디테일을 되살리고, 차이가 남는 곳에서는 실제 프레임을 약간 부드럽게 해 서로 맞춥니다. 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "真实帧为配合补出帧而让出的细节比例：越大越不闪，但真实帧越软",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "真實幀為配合補出幀而讓出的細節比例：越大越不閃，但真實幀越軟",
+   "en": "How much detail the real frames give up to match the generated ones: higher pulses less but real frames get softer",
+   "ja": "実フレームが生成フレームに合わせて手放す細部の割合：大きいほどちらつきは減りますが、実フレームは柔らかくなります",
+   "ko": "실제 프레임이 생성된 프레임에 맞추려고 내려놓는 디테일 비율: 클수록 덜 깜박이지만 실제 프레임이 더 부드러워집니다"
+  },
+  {
+   "zh": "引擎未接受补帧细节匹配，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受補幀細節匹配，原設定保留",
+   "en": "The engine did not accept detail match; the previous setting is kept",
+   "ja": "エンジンがディテール合わせを受け付けませんでした。以前の設定を維持します",
+   "ko": "엔진이 디테일 맞춤을 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }

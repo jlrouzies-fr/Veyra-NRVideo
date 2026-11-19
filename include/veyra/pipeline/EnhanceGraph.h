@@ -159,6 +159,8 @@ struct EnhanceGraphDesc {
     float debandThreshold=3.0f;
     bool sharpen=false;
     float sharpenStrength=0.4f;
+    bool detailMatch=false;
+    float detailMatchStrength=0.7f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -1015,6 +1017,19 @@ private:
     ComPtr<ID3D12Resource> sharpenVideo_[2],sharpenScratch_;
     bool sharpenActive()const{return desc_.sharpen&&!desc_.stillImage;}
     void applySharpen(ID3D12GraphicsCommandList*,unsigned outputIndex);
+    // Post passes on output frames, in order. postSource: the texture holding a real output
+    // frame after every pass before `stage` (generated frames are processed in place).
+    enum class PostStage{Detail,Sharpen,MotionBlur,Deband,Present};
+    ID3D12Resource* postSource(unsigned outputIndex,PostStage stage)const;
+    // Detail match: per-16px-block fine-detail energies; generated frames boosted, real ones softened.
+    ComputePass detailEnergyPass_,detailBoostPass_,detailSoftenPass_;
+    ComPtr<ID3D12Resource> detailEnergyReal_[2],detailEnergyGen_,detailEnergyGenLast_,detailVideo_[2],detailScratch_;
+    uint32_t detailGroupsX_=0,detailGroupsY_=0;
+    bool detailRealValid_[2]{},detailGenValid_=false;
+    bool detailMatchActive()const{return desc_.detailMatch&&!desc_.stillImage;}
+    void detailEnergy(ID3D12GraphicsCommandList*,unsigned table,ID3D12Resource* source,ID3D12Resource* target);
+    void applyDetailReal(ID3D12GraphicsCommandList*,unsigned parity);
+    void applyDetailGenerated(ID3D12GraphicsCommandList*,unsigned generatedSlot,bool reset);
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;

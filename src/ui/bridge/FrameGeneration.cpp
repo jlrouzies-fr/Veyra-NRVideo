@@ -338,6 +338,29 @@ void QmlPlayerBridge::setSharpenStrength(int percent) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "sharpen strength not saved");
     emit settingsChanged();
 }
+// Detail match: shell preferences like motion blur. On/off rebuilds the graph (own
+// textures); the strength is live.
+bool QmlPlayerBridge::detailMatch() const { return settings().detailMatch; }
+void QmlPlayerBridge::setDetailMatch(bool value) {
+    auto s = settings();
+    if (s.detailMatch == value) return;
+    s.detailMatch = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受补帧细节匹配，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("detailMatch")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "detail match not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::detailMatchStrength() const { return int(std::lround(settings().detailMatchStrength * 100.0f)); }
+void QmlPlayerBridge::setDetailMatchStrength(int percent) {
+    percent = std::clamp(percent, 0, 100);
+    auto s = settings();
+    if (int(std::lround(s.detailMatchStrength * 100.0f)) == percent) return;
+    s.detailMatchStrength = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受补帧细节匹配，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("detailMatchStrength")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "detail match strength not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

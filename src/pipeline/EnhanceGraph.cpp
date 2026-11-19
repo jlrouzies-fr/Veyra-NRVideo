@@ -1091,6 +1091,24 @@ bool EnhanceGraph::createResources()
     if(!createBeautyShared())return false;
     videoFrame_[0] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
     videoFrame_[1] = makeTexture(context_.device(), workW_, workH_, outputFormat(), true);
+    if(detailMatchActive()){
+        detailGroupsX_=(workW_+15)/16;detailGroupsY_=(workH_+15)/16;
+        for(auto& texture:detailEnergyReal_){
+            texture=makeTexture(context_.device(),detailGroupsX_,detailGroupsY_,DXGI_FORMAT_R32_FLOAT,true);
+            if(!texture)return false;
+        }
+        detailEnergyGen_=makeTexture(context_.device(),detailGroupsX_,detailGroupsY_,DXGI_FORMAT_R32_FLOAT,true);
+        detailEnergyGenLast_=makeTexture(context_.device(),detailGroupsX_,detailGroupsY_,DXGI_FORMAT_R32_FLOAT,true);
+        if(!detailEnergyGen_||!detailEnergyGenLast_)return false;
+        for(auto& texture:detailVideo_){
+            texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+            if(!texture)return false;
+        }
+        detailScratch_=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+        if(!detailScratch_)return false;
+        detailRealValid_[0]=detailRealValid_[1]=false;detailGenValid_=false;
+        veyra::log::info("detail-match",std::format("enabled strength={:.2f} {}x{}",desc_.detailMatchStrength,workW_,workH_));
+    }
     if(sharpenActive()){
         for(auto& texture:sharpenVideo_){
             texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
@@ -2214,6 +2232,14 @@ bool EnhanceGraph::createComputePasses()
        !debandPass_.create(context_.device(),cs,kOutputPoolSlots*2,1,1,8,0,true)))return false;
     if(sharpenActive()&&(!sharpenPass_.loadShader("Sharpen.dxil",cs)||
        !sharpenPass_.create(context_.device(),cs,kOutputPoolSlots*2,1,1,24,0,true)))return false;
+    if(detailMatchActive()){
+        if(!detailEnergyPass_.loadShader("DetailEnergy.dxil",cs)||
+           !detailEnergyPass_.create(context_.device(),cs,(2+2*kGeneratedPoolSlots)*2,1,1,8,0,true))return false;
+        if(!detailBoostPass_.loadShader("DetailBoost.dxil",cs)||
+           !detailBoostPass_.create(context_.device(),cs,kGeneratedPoolSlots*7,6,1,8,0,true))return false;
+        if(!detailSoftenPass_.loadShader("DetailSoften.dxil",cs)||
+           !detailSoftenPass_.create(context_.device(),cs,2*4,3,1,8,0,true))return false;
+    }
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2687,9 +2713,37 @@ bool EnhanceGraph::createViews()
     if(sharpenActive()){
         for(unsigned output=0;output<kOutputPoolSlots;++output){
             const unsigned base=output*2;
-            auto* source=output>=2?genFrame_[output-2].Get():exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
+            auto* source=postSource(output,PostStage::Sharpen);
             if(viewsTex)stagedSrv(source,outputFormat(),sharpenPass_,base);
             if(viewsUav)makeUav(context_.device(),output<2?sharpenVideo_[output].Get():sharpenScratch_.Get(),outputFormat(),cpu(sharpenPass_,base+1));
+        }
+    }
+    if(detailMatchActive()){
+        // Energy tables: 0,1 real parity -> its energy; 2+2s generated slot s -> energy before the
+        // boost, 3+2s -> after it (what the next real frame is matched to).
+        const auto energyTable=[&](unsigned table,ID3D12Resource* source,ID3D12Resource* target){
+            if(viewsTex)stagedSrv(source,outputFormat(),detailEnergyPass_,table*2);
+            if(viewsUav)makeUav(context_.device(),target,DXGI_FORMAT_R32_FLOAT,cpu(detailEnergyPass_,table*2+1));
+        };
+        for(unsigned parity=0;parity<2;++parity)energyTable(parity,postSource(parity,PostStage::Detail),detailEnergyReal_[parity].Get());
+        for(unsigned slot=0;slot<kGeneratedPoolSlots;++slot){
+            energyTable(2+slot*2,genFrame_[slot].Get(),detailEnergyGen_.Get());
+            energyTable(3+slot*2,genFrame_[slot].Get(),detailEnergyGenLast_.Get());
+            const unsigned base=slot*7,parity=slot%2;
+            if(viewsTex)stagedSrv(genFrame_[slot].Get(),outputFormat(),detailBoostPass_,base);
+            if(viewsTex)stagedSrv(postSource(parity,PostStage::Detail),outputFormat(),detailBoostPass_,base+1);
+            if(viewsTex)stagedSrv(postSource(1-parity,PostStage::Detail),outputFormat(),detailBoostPass_,base+2);
+            if(viewsTex)stagedSrv(detailEnergyGen_.Get(),DXGI_FORMAT_R32_FLOAT,detailBoostPass_,base+3);
+            if(viewsTex)stagedSrv(detailEnergyReal_[parity].Get(),DXGI_FORMAT_R32_FLOAT,detailBoostPass_,base+4);
+            if(viewsTex)stagedSrv(detailEnergyReal_[1-parity].Get(),DXGI_FORMAT_R32_FLOAT,detailBoostPass_,base+5);
+            if(viewsUav)makeUav(context_.device(),detailScratch_.Get(),outputFormat(),cpu(detailBoostPass_,base+6));
+        }
+        for(unsigned parity=0;parity<2;++parity){
+            const unsigned base=parity*4;
+            if(viewsTex)stagedSrv(postSource(parity,PostStage::Detail),outputFormat(),detailSoftenPass_,base);
+            if(viewsTex)stagedSrv(detailEnergyReal_[parity].Get(),DXGI_FORMAT_R32_FLOAT,detailSoftenPass_,base+1);
+            if(viewsTex)stagedSrv(detailEnergyGenLast_.Get(),DXGI_FORMAT_R32_FLOAT,detailSoftenPass_,base+2);
+            if(viewsUav)makeUav(context_.device(),detailVideo_[parity].Get(),outputFormat(),cpu(detailSoftenPass_,base+3));
         }
     }
     return true;
@@ -2896,10 +2950,79 @@ bool EnhanceGraph::composeExclusion(ID3D12GraphicsCommandList* list,unsigned out
     return true;
 }
 
-ID3D12Resource* EnhanceGraph::motionBlurSource(unsigned output)const{
+ID3D12Resource* EnhanceGraph::postSource(unsigned output,PostStage stage)const{
     if(output>=2)return genFrame_[output-2].Get();
-    if(sharpenVideo_[output])return sharpenVideo_[output].Get();
+    if(stage>PostStage::Deband&&debandVideo_[output])return debandVideo_[output].Get();
+    if(stage>PostStage::MotionBlur&&motionBlurVideo_[output])return motionBlurVideo_[output].Get();
+    if(stage>PostStage::Sharpen&&sharpenVideo_[output])return sharpenVideo_[output].Get();
+    if(stage>PostStage::Detail&&detailVideo_[output])return detailVideo_[output].Get();
     return exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
+}
+
+ID3D12Resource* EnhanceGraph::motionBlurSource(unsigned output)const{return postSource(output,PostStage::MotionBlur);}
+
+// Fine-detail energy per 16px block of `source` into `target` (see DetailEnergy.hlsl).
+void EnhanceGraph::detailEnergy(ID3D12GraphicsCommandList* list,unsigned table,ID3D12Resource* source,ID3D12Resource* target){
+    tracker_.transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,target,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    const float constants[8]={uintBits(workW_),uintBits(workH_),hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f,0,0,0,0,0};
+    const auto heap=detailEnergyPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+    detailEnergyPass_.bind(list,constants,heap+table*2*detailEnergyPass_.increment,heap+(table*2+1)*detailEnergyPass_.increment);
+    list->Dispatch(detailGroupsX_,detailGroupsY_,1);
+    tracker_.uavBarrier(list,target);
+    tracker_.transition(list,target,D3D12_RESOURCE_STATE_COMMON);
+    tracker_.transition(list,source,D3D12_RESOURCE_STATE_COMMON);
+}
+
+// Real frame: measure it (the boost of the next generated frames needs it), then soften it
+// where the last generated frame was still softer (see DetailSoften.hlsl).
+void EnhanceGraph::applyDetailReal(ID3D12GraphicsCommandList* list,unsigned parity){
+    if(!detailMatchActive())return;
+    auto* source=postSource(parity,PostStage::Detail);
+    detailEnergy(list,parity,source,detailEnergyReal_[parity].Get());
+    detailRealValid_[parity]=true;
+    auto* destination=detailVideo_[parity].Get();
+    for(auto* r:{source,detailEnergyReal_[parity].Get(),detailEnergyGenLast_.Get()})
+        tracker_.transition(list,r,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,destination,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    const float constants[8]={uintBits(workW_),uintBits(workH_),hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f,
+        uintBits(detailGroupsX_),uintBits(detailGroupsY_),detailGenValid_?desc_.detailMatchStrength:0.f,0,0};
+    const auto heap=detailSoftenPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+    const auto base=parity*4;
+    detailSoftenPass_.bind(list,constants,heap+base*detailSoftenPass_.increment,heap+(base+3)*detailSoftenPass_.increment);
+    list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
+    tracker_.uavBarrier(list,destination);
+    for(auto* r:{source,detailEnergyReal_[parity].Get(),detailEnergyGenLast_.Get(),destination})
+        tracker_.transition(list,r,D3D12_RESOURCE_STATE_COMMON);
+}
+
+// Generated frame: boost its fine detail back toward the two real frames around it (see
+// DetailBoost.hlsl), then measure the result for the next real frame. A reset frame (a copy of
+// a real frame) is left alone and breaks the chain.
+void EnhanceGraph::applyDetailGenerated(ID3D12GraphicsCommandList* list,unsigned slot,bool reset){
+    if(!detailMatchActive()||slot>=kGeneratedPoolSlots)return;
+    if(reset||!detailRealValid_[0]||!detailRealValid_[1]){detailGenValid_=false;return;}
+    auto* generated=genFrame_[slot].Get();
+    auto* current=postSource(slot%2,PostStage::Detail);
+    auto* previous=postSource(1-slot%2,PostStage::Detail);
+    detailEnergy(list,2+slot*2,generated,detailEnergyGen_.Get());
+    for(auto* r:{generated,current,previous,detailEnergyGen_.Get(),detailEnergyReal_[0].Get(),detailEnergyReal_[1].Get()})
+        tracker_.transition(list,r,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,detailScratch_.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    const float constants[8]={uintBits(workW_),uintBits(workH_),hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f,
+        uintBits(detailGroupsX_),uintBits(detailGroupsY_),3.0f,0,0};
+    const auto heap=detailBoostPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+    const auto base=slot*7;
+    detailBoostPass_.bind(list,constants,heap+base*detailBoostPass_.increment,heap+(base+6)*detailBoostPass_.increment);
+    list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
+    tracker_.uavBarrier(list,detailScratch_.Get());
+    tracker_.transition(list,detailScratch_.Get(),D3D12_RESOURCE_STATE_COPY_SOURCE);
+    tracker_.transition(list,generated,D3D12_RESOURCE_STATE_COPY_DEST);
+    list->CopyResource(generated,detailScratch_.Get());
+    for(auto* r:{generated,current,previous,detailEnergyGen_.Get(),detailEnergyReal_[0].Get(),detailEnergyReal_[1].Get(),detailScratch_.Get()})
+        tracker_.transition(list,r,D3D12_RESOURCE_STATE_COMMON);
+    detailEnergy(list,3+slot*2,generated,detailEnergyGenLast_.Get());
+    detailGenValid_=true;
 }
 
 // Blurs one output frame along this frame's flow (baseFlow_: current->previous, work
@@ -2941,17 +3064,12 @@ void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned outp
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
 }
 
-ID3D12Resource* EnhanceGraph::debandSource(unsigned output)const{
-    if(output>=2)return genFrame_[output-2].Get();
-    if(motionBlurVideo_[output])return motionBlurVideo_[output].Get();
-    if(sharpenVideo_[output])return sharpenVideo_[output].Get();
-    return exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
-}
+ID3D12Resource* EnhanceGraph::debandSource(unsigned output)const{return postSource(output,PostStage::Deband);}
 
 // Sharpen one output frame (see Sharpen.hlsl), right after exclusion.
 void EnhanceGraph::applySharpen(ID3D12GraphicsCommandList* list,unsigned output){
     if(!sharpenActive())return;
-    auto* source=output>=2?genFrame_[output-2].Get():exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
+    auto* source=postSource(output,PostStage::Sharpen);
     auto* destination=output<2?sharpenVideo_[output].Get():sharpenScratch_.Get();
     tracker_.transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -4438,6 +4556,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     if(!composeExclusion(list,parity,parity,presentSinkFg()))return false;
     // A real frame is shown for 1 / outputMultiplier of the pair with FG, else for all of it.
     const float motionBlurLength=desc_.motionBlurShutter/float(runFg&&fgCreated()?std::max(1u,outputMultiplier):1u);
+    applyDetailReal(list,parity);
     applySharpen(list,parity);
     applyMotionBlur(list,parity,parity,motionBlurLength);
     applyDeband(list,parity);
@@ -4461,6 +4580,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             if(!copied&&!resetFg){veyra::log::error("amf-frc","AMF returned no interpolated frame for this pair");failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
+            applyDetailGenerated(flist,generatedSlot,resetFg);
             applySharpen(flist,generatedSlot+2);
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             applyDeband(flist,generatedSlot+2);
@@ -4490,6 +4610,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             if(!vfgBackend_->copyOutput(flist,genFrame_[generatedSlot].Get(),generatedSlot)){failedBackend_=engine::FailedBackend::Fg;return false;}
             if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
+            applyDetailGenerated(flist,generatedSlot,resetFg);
             applySharpen(flist,generatedSlot+2);
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
             applyDeband(flist,generatedSlot+2);
@@ -4576,6 +4697,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         }
         if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
         if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
+        applyDetailGenerated(flist,generatedSlot,resetFg);
         applySharpen(flist,generatedSlot+2);
         if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
         applyDeband(flist,generatedSlot+2);
@@ -4613,7 +4735,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     ++realFrameIndex_;
     out.realFrameIndex = realFrameIndex_;
     out.videoSlot = parity;
-    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=debandVideo_[parity]?debandVideo_[parity]:motionBlurVideo_[parity]?motionBlurVideo_[parity]:sharpenVideo_[parity]?sharpenVideo_[parity]:exclusionVideo_[parity]?exclusionVideo_[parity]:videoFrame_[parity];real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
+    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=postSource(parity,PostStage::Present);real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
     if(veyra::log::verboseFrameLogs())veyra::log::info("frame-batch",std::format("batch={} epoch={} revision={} source={} a={} b={} count={} realSlot={} realFence={} genSlot={} genFence={}",out.batch.batchId,epoch_,out.batch.identity.settingsRevision,out.batch.identity.sourceFrameId,out.batch.a100ns,out.batch.b100ns,out.batch.count,parity,out.videoFenceValue,out.genSlot,out.genFenceValue));
     if(pausedEligible&&lastAppliedSettings_){
         pausedNrCacheValid_=true;pausedNrFrame_=frame;pausedNrSourceId_=sourceFrameId;pausedNrPts_=ptsMs;
@@ -4756,6 +4878,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     if(s.fgHighlightClamp!=desc_.fgHighlightClamp)return false;
     if(s.deband!=desc_.deband)return false;
     if(s.sharpen!=desc_.sharpen)return false;
+    if(s.detailMatch!=desc_.detailMatch)return false;
     if((s.nrHoldStrength>0.0f)!=(desc_.nrHoldStrength>0.0f))return false;
     // NR inference reuse: a preview graph allocates its pass only when built
     // with reuse on, so on/off rebuilds; Auto and the manual ratios are live.
@@ -4813,6 +4936,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.fgHighlightStrength=s.fgHighlightStrength;
     desc_.debandThreshold=s.debandThreshold;
     desc_.sharpenStrength=s.sharpenStrength;
+    desc_.detailMatchStrength=s.detailMatchStrength;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
@@ -4905,7 +5029,7 @@ uint64_t EnhanceGraph::nvofNextOutValue() const
 
 ID3D12Resource* EnhanceGraph::videoFrameResource(uint32_t slot) const
 {
-    return slot<2?(debandVideo_[slot]?debandVideo_[slot].Get():motionBlurVideo_[slot]?motionBlurVideo_[slot].Get():sharpenVideo_[slot]?sharpenVideo_[slot].Get():exclusionVideo_[slot]?exclusionVideo_[slot].Get():videoFrame_[slot].Get()):nullptr;
+    return slot<2?postSource(slot,PostStage::Present):nullptr;
 }
 
 ID3D12Resource* EnhanceGraph::generatedFrameResource(uint32_t slot) const
@@ -5099,6 +5223,10 @@ void EnhanceGraph::shutdown()
     for(auto& r:debandVideo_)r.Reset();
     sharpenPass_={};sharpenScratch_.Reset();
     for(auto& r:sharpenVideo_)r.Reset();
+    detailEnergyPass_={};detailBoostPass_={};detailSoftenPass_={};
+    for(auto& r:detailEnergyReal_)r.Reset();
+    detailEnergyGen_.Reset();detailEnergyGenLast_.Reset();detailScratch_.Reset();
+    for(auto& r:detailVideo_)r.Reset();
     for(auto& r:exclusionVideo_)r.Reset();
     for(auto& r:exclusionUi_)r.Reset();
     for(auto& r:sourceReferences_)r.Reset();for(auto& r:baseReferences_)r.Reset();workRgba_.Reset();

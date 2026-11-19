@@ -1921,6 +1921,29 @@ VPage {
                                 }
                             }
                             VRow {
+                                label: qsTr("补帧细节匹配")
+                                hint: qsTr("补出的帧在缓慢移动时会丢失细节，画面一软一硬地闪烁（脉动）；恢复补出帧的细节，并在仍有差距处让真实帧稍微柔化，使两者一致。开关会重建画面管线")
+                                VSwitch {
+                                    objectName: "list-detail-match"
+                                    checked: veyra.detailMatch
+                                    onToggled: checked => veyra.detailMatch = checked
+                                }
+                            }
+                            VRow {
+                                label: qsTr("强度")
+                                visible: veyra.detailMatch
+                                hint: qsTr("真实帧为配合补出帧而让出的细节比例：越大越不闪，但真实帧越软")
+                                VSlider {
+                                    objectName: "list-detail-match-strength"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 70
+                                    from: 0; to: 100; stepSize: 10
+                                    value: veyra.detailMatchStrength
+                                    onMoved: value => veyra.detailMatchStrength = Math.round(value)
+                                }
+                            }
+                            VRow {
                                 label: qsTr("严格补帧节奏")
                                 hint: qsTr("帧同步 · 默认关闭")
                                 VSwitch {

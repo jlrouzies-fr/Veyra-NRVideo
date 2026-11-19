@@ -545,6 +545,9 @@ class QmlPlayerBridge : public QObject {
     // 锐化: EnhancementSettings::sharpen / sharpenStrength (percent).
     Q_PROPERTY(bool sharpen READ sharpen WRITE setSharpen NOTIFY settingsChanged)
     Q_PROPERTY(int sharpenStrength READ sharpenStrength WRITE setSharpenStrength NOTIFY settingsChanged)
+    // 补帧细节匹配: EnhancementSettings::detailMatch / detailMatchStrength (percent).
+    Q_PROPERTY(bool detailMatch READ detailMatch WRITE setDetailMatch NOTIFY settingsChanged)
+    Q_PROPERTY(int detailMatchStrength READ detailMatchStrength WRITE setDetailMatchStrength NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1254,6 +1257,10 @@ public:
     void setSharpen(bool value);
     int sharpenStrength() const;
     void setSharpenStrength(int percent);
+    bool detailMatch() const;
+    void setDetailMatch(bool value);
+    int detailMatchStrength() const;
+    void setDetailMatchStrength(int percent);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

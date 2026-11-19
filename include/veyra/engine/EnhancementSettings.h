@@ -516,6 +516,11 @@ struct EnhancementSettings {
     // on/off rebuilds (own textures), strength live.
     bool sharpen=false;
     float sharpenStrength=0.4f; // 0..1
+    // Detail match: generated frames lose fine detail on slow motion, so output frames pulse
+    // soft / sharp. Generated frames get their detail boosted back, real frames give up some
+    // where the gap remains. Shell preference; on/off rebuilds, strength (real-frame share) live.
+    bool detailMatch=false;
+    float detailMatchStrength=0.7f; // 0..1
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -693,6 +698,7 @@ struct EnhancementSettings {
         if(!(fgHighlightStrength>=0.0f&&fgHighlightStrength<=1.0f))return "invalid highlight clamp strength";
         if(!(debandThreshold>=1.0f&&debandThreshold<=8.0f))return "invalid deband threshold";
         if(!(sharpenStrength>=0.0f&&sharpenStrength<=1.0f))return "invalid sharpen strength";
+        if(!(detailMatchStrength>=0.0f&&detailMatchStrength<=1.0f))return "invalid detail match strength";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.
