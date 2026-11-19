@@ -25564,6 +25564,46 @@
    "en": "The engine did not accept the highlight stabiliser; the previous setting is kept",
    "ja": "エンジンがハイライト安定化を受け付けませんでした。以前の設定を維持します",
    "ko": "엔진이 하이라이트 안정화를 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "去色带",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "去色帶",
+   "en": "Deband",
+   "ja": "バンディング除去",
+   "ko": "밴딩 제거"
+  },
+  {
+   "zh": "平滑天空等渐变中一级一级的色带（降噪去掉颗粒后更明显），并加入极细的动态抖动；只处理平坦区域，边缘和纹理不受影响。开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "平滑天空等漸層中一級一級的色帶（降噪去掉顆粒後更明顯），並加入極細的動態抖動；只處理平坦區域，邊緣和紋理不受影響。開關會重建畫面管線",
+   "en": "Smooths the step-by-step bands in gradients such as skies (more visible once denoising removes the grain) and adds a very fine moving dither; only flat areas are touched, edges and texture are kept. Switching it rebuilds the picture pipeline",
+   "ja": "空などのグラデーションに出る段階的なバンディング（ノイズ除去で粒子が消えると目立つ）を滑らかにし、ごく細かい動的ディザを加えます。平坦な部分のみ処理し、エッジや質感は保たれます。切り替えると映像パイプラインを再構築します",
+   "ko": "하늘 같은 그라데이션의 계단식 밴딩(노이즈 제거로 그레인이 사라지면 더 잘 보임)을 부드럽게 하고 아주 미세한 동적 디더를 더합니다. 평평한 영역만 처리하며 가장자리와 질감은 유지됩니다. 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "阈值",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "閾值",
+   "en": "Threshold",
+   "ja": "しきい値",
+   "ko": "임계값"
+  },
+  {
+   "zh": "被平滑的最大亮度差（10 位色阶）：越大去色带越强，但可能抹掉细微纹理",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "被平滑的最大亮度差（10 位色階）：越大去色帶越強，但可能抹掉細微紋理",
+   "en": "Largest difference that gets smoothed (10-bit steps): higher removes more banding but can wipe out faint texture",
+   "ja": "滑らかにする最大の差（10 ビット階調）：大きいほど効果が強くなりますが、かすかな質感が消えることがあります",
+   "ko": "부드럽게 처리하는 최대 차이(10비트 단계): 클수록 밴딩이 더 줄지만 희미한 질감이 지워질 수 있습니다"
+  },
+  {
+   "zh": "引擎未接受去色带，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受去色帶，原設定保留",
+   "en": "The engine did not accept deband; the previous setting is kept",
+   "ja": "エンジンがバンディング除去を受け付けませんでした。以前の設定を維持します",
+   "ko": "엔진이 밴딩 제거를 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }

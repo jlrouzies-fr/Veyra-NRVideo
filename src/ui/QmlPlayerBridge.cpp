@@ -321,6 +321,14 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             const float strength = float(percent) / 100.0f;
             if (s.fgHighlightStrength != strength) { s.fgHighlightStrength = strength; changed = true; }
         }
+        if (p.contains(QStringLiteral("deband"))) {
+            const bool on = p.value(QStringLiteral("deband")).toBool();
+            if (s.deband != on) { s.deband = on; changed = true; }
+        }
+        if (p.contains(QStringLiteral("debandThreshold"))) {
+            const float codes = float(std::clamp(p.value(QStringLiteral("debandThreshold")).toInt(), 1, 8));
+            if (s.debandThreshold != codes) { s.debandThreshold = codes; changed = true; }
+        }
         if (!defaultFlowApplied && p.contains(QStringLiteral("contentRate"))) {
             const int rate = p.value(QStringLiteral("contentRate")).toInt();
             if(rate>=0&&rate<=int(engine::ContentRate::Capture60To30)){

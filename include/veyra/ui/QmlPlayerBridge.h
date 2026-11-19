@@ -539,6 +539,9 @@ class QmlPlayerBridge : public QObject {
     // 高光稳定: EnhancementSettings::fgHighlightClamp / fgHighlightStrength (percent).
     Q_PROPERTY(bool fgHighlightClamp READ fgHighlightClamp WRITE setFgHighlightClamp NOTIFY settingsChanged)
     Q_PROPERTY(int fgHighlightStrength READ fgHighlightStrength WRITE setFgHighlightStrength NOTIFY settingsChanged)
+    // 去色带: EnhancementSettings::deband / debandThreshold (10-bit codes).
+    Q_PROPERTY(bool deband READ deband WRITE setDeband NOTIFY settingsChanged)
+    Q_PROPERTY(int debandThreshold READ debandThreshold WRITE setDebandThreshold NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1240,6 +1243,10 @@ public:
     void setFgHighlightClamp(bool value);
     int fgHighlightStrength() const;
     void setFgHighlightStrength(int percent);
+    bool deband() const;
+    void setDeband(bool value);
+    int debandThreshold() const;
+    void setDebandThreshold(int codes);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

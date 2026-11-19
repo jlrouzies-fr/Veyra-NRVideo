@@ -508,6 +508,10 @@ struct EnhancementSettings {
     // shimmer through foliage). Shell preference; on/off rebuilds (needs the flow), strength live.
     bool fgHighlightClamp=false;
     float fgHighlightStrength=0.5f; // 0 loose (3x3 neighbourhoods), 1 tight (between the two real values)
+    // Deband every output frame (smooth gradients shown as one-code steps once NR removed the
+    // grain). Shell preference; on/off rebuilds (own textures), threshold live.
+    bool deband=false;
+    float debandThreshold=3.0f; // largest difference still smoothed, in 10-bit codes
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -683,6 +687,7 @@ struct EnhancementSettings {
         if(vfgQuality>=kVfgQualityCount)return "invalid VFG quality";
         if(!(motionBlurShutter>=0.05f&&motionBlurShutter<=1.0f))return "invalid motion blur shutter";
         if(!(fgHighlightStrength>=0.0f&&fgHighlightStrength<=1.0f))return "invalid highlight clamp strength";
+        if(!(debandThreshold>=1.0f&&debandThreshold<=8.0f))return "invalid deband threshold";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.

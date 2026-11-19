@@ -1100,6 +1100,15 @@ bool EnhanceGraph::createResources()
         if(!motionBlurScratch_)return false;
         veyra::log::info("motion-blur",std::format("enabled shutter={:.2f} {}x{}",desc_.motionBlurShutter,workW_,workH_));
     }
+    if(debandActive()){
+        for(auto& texture:debandVideo_){
+            texture=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+            if(!texture)return false;
+        }
+        debandScratch_=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
+        if(!debandScratch_)return false;
+        veyra::log::info("deband",std::format("enabled threshold={:.1f} {}x{}",desc_.debandThreshold,workW_,workH_));
+    }
     if(highlightClampActive()){
         highlightScratch_=makeTexture(context_.device(),workW_,workH_,outputFormat(),true);
         if(!highlightScratch_)return false;
@@ -2192,6 +2201,8 @@ bool EnhanceGraph::createComputePasses()
        !motionBlurPass_.create(context_.device(),cs,kOutputPoolSlots*2*5,4,1,24,0,true)))return false;
     if(highlightClampActive()&&(!highlightPass_.loadShader("HighlightClamp.dxil",cs)||
        !highlightPass_.create(context_.device(),cs,kGeneratedPoolSlots*5,4,1,8,0,true)))return false;
+    if(debandActive()&&(!debandPass_.loadShader("Deband.dxil",cs)||
+       !debandPass_.create(context_.device(),cs,kOutputPoolSlots*2,1,1,8,0,true)))return false;
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2655,6 +2666,13 @@ bool EnhanceGraph::createViews()
             if(viewsUav)makeUav(context_.device(),highlightScratch_.Get(),outputFormat(),cpu(highlightPass_,base+4));
         }
     }
+    if(debandActive()){
+        for(unsigned output=0;output<kOutputPoolSlots;++output){
+            const unsigned base=output*2;
+            if(viewsTex)stagedSrv(debandSource(output),outputFormat(),debandPass_,base);
+            if(viewsUav)makeUav(context_.device(),output<2?debandVideo_[output].Get():debandScratch_.Get(),outputFormat(),cpu(debandPass_,base+1));
+        }
+    }
     return true;
 }
 
@@ -2900,6 +2918,41 @@ void EnhanceGraph::applyMotionBlur(ID3D12GraphicsCommandList* list,unsigned outp
     tracker_.transition(list,source,D3D12_RESOURCE_STATE_COMMON);
     for(auto* real:{videoFrame_[parity].Get(),videoFrame_[1-parity].Get()})
         if(real!=source)tracker_.transition(list,real,D3D12_RESOURCE_STATE_COMMON);
+    tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
+}
+
+ID3D12Resource* EnhanceGraph::debandSource(unsigned output)const{
+    if(output>=2)return genFrame_[output-2].Get();
+    if(motionBlurVideo_[output])return motionBlurVideo_[output].Get();
+    return exclusionVideo_[output]?exclusionVideo_[output].Get():videoFrame_[output].Get();
+}
+
+// Deband one output frame, the last pass before presentation (see Deband.hlsl).
+void EnhanceGraph::applyDeband(ID3D12GraphicsCommandList* list,unsigned output){
+    if(!debandActive())return;
+    auto* source=debandSource(output);
+    auto* destination=output<2?debandVideo_[output].Get():debandScratch_.Get();
+    tracker_.transition(list,source,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,destination,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    // Threshold in codes of the output signal: 10-bit PQ, 8-bit sRGB; an scRGB target is
+    // compared in PQ. Radius 24 px at 3840 wide. Dither only for UNORM targets.
+    const float mode=hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f;
+    const float code=mode>1.5f||mode>0.5f?1.0f/1023.0f:1.0f/255.0f;
+    const float ditherStep=mode>1.5f?1.0f/1023.0f:mode>0.5f?0.0f:1.0f/255.0f;
+    const float radius=std::max(8.0f,24.0f*float(workW_)/3840.0f);
+    const float constants[8]={uintBits(workW_),uintBits(workH_),radius,desc_.debandThreshold*code,ditherStep,mode,
+        uintBits(++debandFrame_),0};
+    const auto heap=debandPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+    const auto base=output*2;
+    debandPass_.bind(list,constants,heap+base*debandPass_.increment,heap+(base+1)*debandPass_.increment);
+    list->Dispatch((workW_+15)/16,(workH_+15)/16,1);
+    tracker_.uavBarrier(list,destination);
+    if(output>=2){
+        tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COPY_SOURCE);
+        tracker_.transition(list,source,D3D12_RESOURCE_STATE_COPY_DEST);
+        list->CopyResource(source,destination);
+    }
+    tracker_.transition(list,source,D3D12_RESOURCE_STATE_COMMON);
     tracker_.transition(list,destination,D3D12_RESOURCE_STATE_COMMON);
 }
 
@@ -4338,6 +4391,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     // A real frame is shown for 1 / outputMultiplier of the pair with FG, else for all of it.
     const float motionBlurLength=desc_.motionBlurShutter/float(runFg&&fgCreated()?std::max(1u,outputMultiplier):1u);
     applyMotionBlur(list,parity,parity,motionBlurLength);
+    applyDeband(list,parity);
     if(!runFg)gpuTimer_.resolve(list);
     if (!submitGraph(slot)) return false;
     if(!runFg)gpuTimer_.submitted(ring_.lastSignaledValue());
@@ -4359,6 +4413,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
+            applyDeband(flist,generatedSlot+2);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
             gpuTimer_.mark(flist,GpuStage::Fg1,true);gpuTimer_.mark(flist,GpuStage::FgBatch,true);gpuTimer_.resolve(flist);
             if(!submitGraph(slot))return false;
@@ -4386,6 +4441,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
             if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
             if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
             if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
+            applyDeband(flist,generatedSlot+2);
             tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
             const auto timingStage=GpuStage(unsigned(GpuStage::Fg1)+sub-1);gpuTimer_.mark(flist,timingStage,true);
             if(sub<fgCalls)gpuTimer_.mark(flist,GpuStage(unsigned(GpuStage::Fg1)+sub));
@@ -4470,6 +4526,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         if(!resetFg)applyHighlightClamp(flist,generatedSlot,float(sub)/float(std::max(1u,outputMultiplier)));
         if(!composeExclusion(flist,generatedSlot+2,resetFg?parity:1-parity,false))return false;
         if(!resetFg)applyMotionBlur(flist,generatedSlot+2,parity,motionBlurLength);
+        applyDeband(flist,generatedSlot+2);
         tracker_.transition(flist,videoFrame_[parity].Get(),D3D12_RESOURCE_STATE_COMMON);
         tracker_.transition(flist,genFrame_[generatedSlot].Get(),D3D12_RESOURCE_STATE_COMMON);
         tracker_.transition(flist,depthTex_.Get(),D3D12_RESOURCE_STATE_COMMON);
@@ -4504,7 +4561,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     ++realFrameIndex_;
     out.realFrameIndex = realFrameIndex_;
     out.videoSlot = parity;
-    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=motionBlurVideo_[parity]?motionBlurVideo_[parity]:exclusionVideo_[parity]?exclusionVideo_[parity]:videoFrame_[parity];real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
+    BatchFrame real;real.identity=out.batch.identity;real.pts100ns=out.batch.b100ns;real.lease=std::make_shared<FrameLease>();real.lease->texture=debandVideo_[parity]?debandVideo_[parity]:motionBlurVideo_[parity]?motionBlurVideo_[parity]:exclusionVideo_[parity]?exclusionVideo_[parity]:videoFrame_[parity];real.lease->sourceReference=sourceReferences_[parity];real.lease->baseReference=baseReferences_[parity];real.lease->slot=parity;real.lease->readyFence=out.videoFenceValue;real.lease->readyFenceObject=out.videoFenceObject;real.lease->referencesValid=retainReferences;realLeases_[parity]=real.lease;out.batch.append(std::move(real));
     if(veyra::log::verboseFrameLogs())veyra::log::info("frame-batch",std::format("batch={} epoch={} revision={} source={} a={} b={} count={} realSlot={} realFence={} genSlot={} genFence={}",out.batch.batchId,epoch_,out.batch.identity.settingsRevision,out.batch.identity.sourceFrameId,out.batch.a100ns,out.batch.b100ns,out.batch.count,parity,out.videoFenceValue,out.genSlot,out.genFenceValue));
     if(pausedEligible&&lastAppliedSettings_){
         pausedNrCacheValid_=true;pausedNrFrame_=frame;pausedNrSourceId_=sourceFrameId;pausedNrPts_=ptsMs;
@@ -4645,6 +4702,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     if(s.exclusion.enabled!=desc_.exclusion.enabled)return false;
     if(s.motionBlur!=desc_.motionBlur)return false;
     if(s.fgHighlightClamp!=desc_.fgHighlightClamp)return false;
+    if(s.deband!=desc_.deband)return false;
     if((s.nrHoldStrength>0.0f)!=(desc_.nrHoldStrength>0.0f))return false;
     // NR inference reuse: a preview graph allocates its pass only when built
     // with reuse on, so on/off rebuilds; Auto and the manual ratios are live.
@@ -4700,6 +4758,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.nrHoldStrength=s.nrHoldStrength;desc_.nrHoldTolerance=s.nrHoldTolerance;
     desc_.motionBlurShutter=s.motionBlurShutter;
     desc_.fgHighlightStrength=s.fgHighlightStrength;
+    desc_.debandThreshold=s.debandThreshold;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
@@ -4792,7 +4851,7 @@ uint64_t EnhanceGraph::nvofNextOutValue() const
 
 ID3D12Resource* EnhanceGraph::videoFrameResource(uint32_t slot) const
 {
-    return slot<2?(motionBlurVideo_[slot]?motionBlurVideo_[slot].Get():exclusionVideo_[slot]?exclusionVideo_[slot].Get():videoFrame_[slot].Get()):nullptr;
+    return slot<2?(debandVideo_[slot]?debandVideo_[slot].Get():motionBlurVideo_[slot]?motionBlurVideo_[slot].Get():exclusionVideo_[slot]?exclusionVideo_[slot].Get():videoFrame_[slot].Get()):nullptr;
 }
 
 ID3D12Resource* EnhanceGraph::generatedFrameResource(uint32_t slot) const
@@ -4982,6 +5041,8 @@ void EnhanceGraph::shutdown()
     motionBlurPass_={};motionBlurScratch_.Reset();
     for(auto& r:motionBlurVideo_)r.Reset();
     highlightPass_={};highlightScratch_.Reset();
+    debandPass_={};debandScratch_.Reset();
+    for(auto& r:debandVideo_)r.Reset();
     for(auto& r:exclusionVideo_)r.Reset();
     for(auto& r:exclusionUi_)r.Reset();
     for(auto& r:sourceReferences_)r.Reset();for(auto& r:baseReferences_)r.Reset();workRgba_.Reset();

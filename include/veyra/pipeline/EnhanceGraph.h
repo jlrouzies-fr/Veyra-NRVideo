@@ -155,6 +155,8 @@ struct EnhanceGraphDesc {
     float motionBlurShutter=0.5f;
     bool fgHighlightClamp=false;
     float fgHighlightStrength=0.5f;
+    bool deband=false;
+    float debandThreshold=3.0f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -997,6 +999,14 @@ private:
     ComPtr<ID3D12Resource> highlightScratch_;
     bool highlightClampActive()const{return desc_.fgHighlightClamp&&!desc_.stillImage;}
     void applyHighlightClamp(ID3D12GraphicsCommandList*,unsigned generatedSlot,float phase);
+    // Deband, the last pass on every output frame: real frames into their own textures,
+    // generated ones in place.
+    ComputePass debandPass_;
+    ComPtr<ID3D12Resource> debandVideo_[2],debandScratch_;
+    uint32_t debandFrame_=0;
+    bool debandActive()const{return desc_.deband&&!desc_.stillImage;}
+    void applyDeband(ID3D12GraphicsCommandList*,unsigned outputIndex);
+    ID3D12Resource* debandSource(unsigned outputIndex)const;
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;

@@ -1875,6 +1875,29 @@ VPage {
                                 }
                             }
                             VRow {
+                                label: qsTr("去色带")
+                                hint: qsTr("平滑天空等渐变中一级一级的色带（降噪去掉颗粒后更明显），并加入极细的动态抖动；只处理平坦区域，边缘和纹理不受影响。开关会重建画面管线")
+                                VSwitch {
+                                    objectName: "list-deband"
+                                    checked: veyra.deband
+                                    onToggled: checked => veyra.deband = checked
+                                }
+                            }
+                            VRow {
+                                label: qsTr("阈值")
+                                visible: veyra.deband
+                                hint: qsTr("被平滑的最大亮度差（10 位色阶）：越大去色带越强，但可能抹掉细微纹理")
+                                VSlider {
+                                    objectName: "list-deband-threshold"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 3
+                                    from: 1; to: 8; stepSize: 1
+                                    value: veyra.debandThreshold
+                                    onMoved: value => veyra.debandThreshold = Math.round(value)
+                                }
+                            }
+                            VRow {
                                 label: qsTr("严格补帧节奏")
                                 hint: qsTr("帧同步 · 默认关闭")
                                 VSwitch {

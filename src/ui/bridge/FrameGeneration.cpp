@@ -292,6 +292,29 @@ void QmlPlayerBridge::setFgHighlightStrength(int percent) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "highlight clamp strength not saved");
     emit settingsChanged();
 }
+// Deband on every output frame: shell preferences like motion blur. On/off rebuilds the
+// graph (own textures); the threshold is live.
+bool QmlPlayerBridge::deband() const { return settings().deband; }
+void QmlPlayerBridge::setDeband(bool value) {
+    auto s = settings();
+    if (s.deband == value) return;
+    s.deband = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受去色带，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("deband")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "deband not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::debandThreshold() const { return int(std::lround(settings().debandThreshold)); }
+void QmlPlayerBridge::setDebandThreshold(int codes) {
+    codes = std::clamp(codes, 1, 8);
+    auto s = settings();
+    if (int(std::lround(s.debandThreshold)) == codes) return;
+    s.debandThreshold = float(codes);
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受去色带，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("debandThreshold")] = codes;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "deband threshold not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;
