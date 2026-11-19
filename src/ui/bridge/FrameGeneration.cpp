@@ -315,6 +315,29 @@ void QmlPlayerBridge::setDebandThreshold(int codes) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "deband threshold not saved");
     emit settingsChanged();
 }
+// Sharpening on every output frame: shell preferences like motion blur. On/off rebuilds
+// the graph (own textures); the strength is live.
+bool QmlPlayerBridge::sharpen() const { return settings().sharpen; }
+void QmlPlayerBridge::setSharpen(bool value) {
+    auto s = settings();
+    if (s.sharpen == value) return;
+    s.sharpen = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受锐化，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("sharpen")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "sharpen not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::sharpenStrength() const { return int(std::lround(settings().sharpenStrength * 100.0f)); }
+void QmlPlayerBridge::setSharpenStrength(int percent) {
+    percent = std::clamp(percent, 0, 100);
+    auto s = settings();
+    if (int(std::lround(s.sharpenStrength * 100.0f)) == percent) return;
+    s.sharpenStrength = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受锐化，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("sharpenStrength")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "sharpen strength not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

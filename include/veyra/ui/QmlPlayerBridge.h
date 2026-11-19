@@ -542,6 +542,9 @@ class QmlPlayerBridge : public QObject {
     // 去色带: EnhancementSettings::deband / debandThreshold (10-bit codes).
     Q_PROPERTY(bool deband READ deband WRITE setDeband NOTIFY settingsChanged)
     Q_PROPERTY(int debandThreshold READ debandThreshold WRITE setDebandThreshold NOTIFY settingsChanged)
+    // 锐化: EnhancementSettings::sharpen / sharpenStrength (percent).
+    Q_PROPERTY(bool sharpen READ sharpen WRITE setSharpen NOTIFY settingsChanged)
+    Q_PROPERTY(int sharpenStrength READ sharpenStrength WRITE setSharpenStrength NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1247,6 +1250,10 @@ public:
     void setDeband(bool value);
     int debandThreshold() const;
     void setDebandThreshold(int codes);
+    bool sharpen() const;
+    void setSharpen(bool value);
+    int sharpenStrength() const;
+    void setSharpenStrength(int percent);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

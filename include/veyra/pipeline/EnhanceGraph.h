@@ -157,6 +157,8 @@ struct EnhanceGraphDesc {
     float fgHighlightStrength=0.5f;
     bool deband=false;
     float debandThreshold=3.0f;
+    bool sharpen=false;
+    float sharpenStrength=0.4f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -1007,6 +1009,12 @@ private:
     bool debandActive()const{return desc_.deband&&!desc_.stillImage;}
     void applyDeband(ID3D12GraphicsCommandList*,unsigned outputIndex);
     ID3D12Resource* debandSource(unsigned outputIndex)const;
+    // Sharpening after exclusion, before motion blur and deband: real frames into their own
+    // textures, generated ones in place.
+    ComputePass sharpenPass_;
+    ComPtr<ID3D12Resource> sharpenVideo_[2],sharpenScratch_;
+    bool sharpenActive()const{return desc_.sharpen&&!desc_.stillImage;}
+    void applySharpen(ID3D12GraphicsCommandList*,unsigned outputIndex);
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;

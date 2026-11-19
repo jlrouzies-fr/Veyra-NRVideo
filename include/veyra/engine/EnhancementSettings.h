@@ -512,6 +512,10 @@ struct EnhancementSettings {
     // grain). Shell preference; on/off rebuilds (own textures), threshold live.
     bool deband=false;
     float debandThreshold=3.0f; // largest difference still smoothed, in 10-bit codes
+    // Adaptive sharpening on every output frame, after frame generation. Shell preference;
+    // on/off rebuilds (own textures), strength live.
+    bool sharpen=false;
+    float sharpenStrength=0.4f; // 0..1
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -688,6 +692,7 @@ struct EnhancementSettings {
         if(!(motionBlurShutter>=0.05f&&motionBlurShutter<=1.0f))return "invalid motion blur shutter";
         if(!(fgHighlightStrength>=0.0f&&fgHighlightStrength<=1.0f))return "invalid highlight clamp strength";
         if(!(debandThreshold>=1.0f&&debandThreshold<=8.0f))return "invalid deband threshold";
+        if(!(sharpenStrength>=0.0f&&sharpenStrength<=1.0f))return "invalid sharpen strength";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.

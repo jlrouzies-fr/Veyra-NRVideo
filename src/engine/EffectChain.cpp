@@ -790,6 +790,7 @@ bool requiresGraphRebuild(const EnhancementSettings& savedPrevious, const Enhanc
     if (previous.motionBlur != next.motionBlur) return true;
     if (previous.fgHighlightClamp != next.fgHighlightClamp) return true;
     if (previous.deband != next.deband) return true;
+    if (previous.sharpen != next.sharpen) return true;
     if (previous.flow != next.flow) return true;
     if (previous.captureCompatible != next.captureCompatible) return true;
     if (previous.forceSdrPreview != next.forceSdrPreview) return true;

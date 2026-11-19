@@ -1728,6 +1728,25 @@ VPage {
                     }
                 }
                 VRow {
+                    label: qsTr("锐化")
+                    hint: qsTr("在补帧之后锐化每一帧（包括补出的帧）；自适应：细节增强最多，强边缘较少，且不产生光晕。开关会重建画面管线")
+                    VSwitch { objectName: "node-sharpen"; checked: veyra.sharpen; onToggled: checked => veyra.sharpen = checked }
+                }
+                VRow {
+                    label: qsTr("强度")
+                    visible: veyra.sharpen
+                    hint: qsTr("锐化强度")
+                    VSlider {
+                        objectName: "node-sharpen-strength"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 40
+                        from: 0; to: 100; stepSize: 5
+                        value: veyra.sharpenStrength
+                        onMoved: value => veyra.sharpenStrength = Math.round(value)
+                    }
+                }
+                VRow {
                     label: qsTr("补帧运动来源")
                     visible: veyra.fgBackendName !== "vfg"
                     hint: qsTr("XeSS 默认零运动；FSR 仍有自身的光流计算")

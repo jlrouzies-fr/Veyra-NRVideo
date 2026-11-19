@@ -25604,6 +25604,38 @@
    "en": "The engine did not accept deband; the previous setting is kept",
    "ja": "エンジンがバンディング除去を受け付けませんでした。以前の設定を維持します",
    "ko": "엔진이 밴딩 제거를 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "锐化",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "銳化",
+   "en": "Sharpen",
+   "ja": "シャープ化",
+   "ko": "선명화"
+  },
+  {
+   "zh": "在补帧之后锐化每一帧（包括补出的帧）；自适应：细节增强最多，强边缘较少，且不产生光晕。开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "在補幀之後銳化每一幀（包括補出的幀）；自適應：細節增強最多，強邊緣較少，且不產生光暈。開關會重建畫面管線",
+   "en": "Sharpens every frame after frame generation (generated ones too). Adaptive: fine detail gains the most, strong edges little, and no halos. Switching it rebuilds the picture pipeline",
+   "ja": "フレーム生成の後で各フレーム（生成フレームを含む）をシャープにします。適応型：細部を最も強調し、強いエッジは控えめで、ハローは出ません。切り替えると映像パイプラインを再構築します",
+   "ko": "프레임 생성 후 모든 프레임(생성된 프레임 포함)을 선명하게 합니다. 적응형: 미세한 디테일은 가장 많이, 강한 가장자리는 적게, 헤일로 없이 처리합니다. 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "锐化强度",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "銳化強度",
+   "en": "Sharpening strength",
+   "ja": "シャープ化の強さ",
+   "ko": "선명화 강도"
+  },
+  {
+   "zh": "引擎未接受锐化，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受銳化，原設定保留",
+   "en": "The engine did not accept sharpening; the previous setting is kept",
+   "ja": "エンジンがシャープ化を受け付けませんでした。以前の設定を維持します",
+   "ko": "엔진이 선명화를 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }
