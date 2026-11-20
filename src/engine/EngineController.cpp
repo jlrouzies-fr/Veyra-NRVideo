@@ -3419,6 +3419,11 @@ void EngineController::run(HWND window,std::wstring path,PlayerOptions options,s
                     // first, then the dynamic-metadata HDR formats, then the static
                     // ones. Identification only: every case maps on the static curve.
                     const auto sourceHdrLabel = [&]() -> std::wstring {
+                        // Capture carries no container metadata: name it from the
+                        // signal the graph resolved, so an HDR10 feed no longer
+                        // falls back to "SDR" in the badge.
+                        if (isCapture && graph) return !gd.hdrInput ? L"SDR" :
+                            graph->inputTransfer() == pipeline::TransferFunction::HLG ? L"HLG" : L"HDR10";
                         if (isCapture || isImage || activeSource == nullptr) return {};
                         const auto& si = activeSource->info();
                         if (si.dolbyVision.present) {

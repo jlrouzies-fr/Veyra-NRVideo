@@ -312,6 +312,10 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             const float shutter = float(percent) / 100.0f;
             if (s.motionBlurShutter != shutter) { s.motionBlurShutter = shutter; changed = true; }
         }
+        if (p.contains(QStringLiteral("fgGapFill"))) {
+            const bool on = p.value(QStringLiteral("fgGapFill")).toBool();
+            if (s.fgGapFill != on) { s.fgGapFill = on; changed = true; }
+        }
         if (p.contains(QStringLiteral("fgHighlightClamp"))) {
             const bool on = p.value(QStringLiteral("fgHighlightClamp")).toBool();
             if (s.fgHighlightClamp != on) { s.fgHighlightClamp = on; changed = true; }

@@ -1690,6 +1690,11 @@ VPage {
                     }
                 }
                 VRow {
+                    label: qsTr("补帧填缺")
+                    hint: qsTr("游戏漏掉一帧时（画面停留比平常久），为这一段多补出相应数量的帧，使输出保持均匀节奏。仅限 VFG，开关会重建画面管线")
+                    VSwitch { objectName: "node-fg-gap-fill"; checked: veyra.fgGapFill; onToggled: checked => veyra.fgGapFill = checked }
+                }
+                VRow {
                     label: qsTr("高光稳定")
                     hint: qsTr("限制补出帧中的高亮像素，使其不超出前后真实帧在同一位置的范围；减少树叶间 HDR 高光的闪烁。需要光流，开关会重建画面管线")
                     VSwitch { objectName: "node-fg-highlight-clamp"; checked: veyra.fgHighlightClamp; onToggled: checked => veyra.fgHighlightClamp = checked }

@@ -789,6 +789,7 @@ bool requiresGraphRebuild(const EnhancementSettings& savedPrevious, const Enhanc
     if (previous.vfgAutoRegulate != next.vfgAutoRegulate) return true;
     if (previous.motionBlur != next.motionBlur) return true;
     if (previous.fgHighlightClamp != next.fgHighlightClamp) return true;
+    if (previous.fgGapFill != next.fgGapFill) return true;
     if (previous.deband != next.deband) return true;
     if (previous.sharpen != next.sharpen) return true;
     if (previous.detailMatch != next.detailMatch) return true;

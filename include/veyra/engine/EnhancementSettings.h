@@ -506,6 +506,10 @@ struct EnhancementSettings {
     float motionBlurShutter=0.5f; // share of one output frame the virtual shutter is open
     // Clamp bright pixels of generated frames to the real frames around them (HDR highlight
     // shimmer through foliage). Shell preference; on/off rebuilds (needs the flow), strength live.
+    // Gap filling (VFG): a pair whose source step is a multiple of the usual one (a game
+    // frame missed under 60->30) gets as many generated frames as that step needs, so the
+    // output keeps its cadence instead of holding a 25 ms frame. On/off rebuilds (pool size).
+    bool fgGapFill=true;
     bool fgHighlightClamp=false;
     float fgHighlightStrength=0.5f; // 0 loose (3x3 neighbourhoods), 1 tight (between the two real values)
     // Deband every output frame (smooth gradients shown as one-code steps once NR removed the

@@ -810,8 +810,8 @@ bool EnhanceGraph::initialize(const EnhanceGraphDesc& desc)
         const auto extent=desc_.nrFullExtent(target);interProtectionBytes=uint64_t(extent.width)*extent.height*8;
     }
     const bool vfg=fgEnabled_&&desc_.frameGenerationBackend==engine::FrameGenerationBackend::Vfg;
-    const uint64_t vfgSharedBytes=vfg?uint64_t((workW_*4u+255u)&~255u)*workH_*(2u+2u*(desc_.fgMultiplier-1u)):0;
-    const unsigned generatedTextures=fgEnabled_?(fsrEnabled()?2u:vfg?2u*(desc_.fgMultiplier-1u):10u):0;
+    const uint64_t vfgSharedBytes=vfg?uint64_t((workW_*4u+255u)&~255u)*workH_*(2u+2u*(vfgPoolMultiplier()-1u)):0;
+    const unsigned generatedTextures=fgEnabled_?(fsrEnabled()?2u:vfg?2u*(vfgPoolMultiplier()-1u):10u):0;
     // Constant depth / zero motion for the temporal SR passes: the source extent
     // for a single FSR pass, the largest DLSS SR / FSR input or motion extent of
     // a double SR (a first DLSS pass takes motion at its result, a second DLSS
@@ -1166,7 +1166,7 @@ bool EnhanceGraph::createResources()
     for(size_t i=0;i<kGeneratedPoolSlots;++i){
         // DLSS compatibility binds ten full-sized resources even at 2X.
         // VFG owns only the selected multiplier's outputs; FSR owns one pair.
-        const unsigned usedCount=fsrEnabled()?2u:desc_.frameGenerationBackend==engine::FrameGenerationBackend::Vfg?2u*(desc_.fgMultiplier-1u):10u;
+        const unsigned usedCount=fsrEnabled()?2u:desc_.frameGenerationBackend==engine::FrameGenerationBackend::Vfg?2u*(vfgPoolMultiplier()-1u):10u;
         const bool used=fgEnabled_&&i<usedCount;
         genFrame_[i]=makeTexture(context_.device(),used?workW_:1,used?workH_:1,outputFormat(),true);
         if(!genFrame_[i])return false;
@@ -1600,12 +1600,38 @@ bool EnhanceGraph::initFsrFg() {
     return true;
 }
 
+unsigned EnhanceGraph::gapFillMultiplier(int64_t a100ns,int64_t b100ns,unsigned base)
+{
+    const int64_t step=b100ns-a100ns;
+    if(step<=0||step>10000000)return base;
+    // Usual step: the lower quartile of the last 32, so the gaps themselves never set it.
+    unsigned result=base;
+    if(pairIntervalCount_>=8){
+        std::array<int64_t,32> sorted=pairIntervals_;
+        const auto n=pairIntervalCount_;
+        std::nth_element(sorted.begin(),sorted.begin()+n/4,sorted.begin()+n);
+        const int64_t usual=sorted[n/4];
+        const double ratio=usual>0?double(step)/double(usual):0.0;
+        if(ratio>=1.35&&ratio<=3.25)
+            result=std::clamp(unsigned(std::lround(ratio*double(base))),base,vfgPoolMultiplier());
+        if(result>base){
+            ++gapFillPairs_;
+            if(gapFillPairs_==1||gapFillPairs_%300==0)
+                log::info("fg-gap-fill",std::format("pairs={} stepMs={:.3f} usualMs={:.3f} multiplier={}X->{}X pool={}X",
+                    gapFillPairs_,double(step)/10000,double(usual)/10000,base,result,vfgPoolMultiplier()));
+        }
+    }
+    pairIntervals_[pairIntervalNext_]=step;pairIntervalNext_=(pairIntervalNext_+1)%unsigned(pairIntervals_.size());
+    pairIntervalCount_=std::min(pairIntervalCount_+1,unsigned(pairIntervals_.size()));
+    return result;
+}
+
 bool EnhanceGraph::initVfg()
 {
     if(!fgEnabled_||desc_.frameGenerationBackend!=engine::FrameGenerationBackend::Vfg)return true;
     failedBackend_=engine::FailedBackend::Fg;
     vfgBackend_=std::make_unique<VfgBackend>();
-    if(!vfgBackend_->initialize(context_,desc_.runtimeAbsPath,workW_,workH_,outputFormat(),desc_.fgMultiplier,desc_.vfgQuality,desc_.vfgAsyncSubmission,desc_.vfgFastFallback))return false;
+    if(!vfgBackend_->initialize(context_,desc_.runtimeAbsPath,workW_,workH_,outputFormat(),vfgPoolMultiplier(),desc_.vfgQuality,desc_.vfgAsyncSubmission,desc_.vfgFastFallback))return false;
     fgCapsAvailable_=true;fgMultiFrameMax_=int(FrameBatch::Capacity)-1;
     return true;
 }
@@ -3246,6 +3272,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         veyra::log::error("hdr","Unsupported PQ/HLG colorimetry: requires signaled/fallback BT2020 NCL and BT2020 primaries");return false;
     }
     if(reset||!realFrameIndex_)veyra::log::info("color",std::format("range={} assumed={} matrix={} assumed={} transfer={} assumed={} display709={} preserveSdrCodes={} workingTransfer={}",int(resolved.range),resolved.rangeAssumed,int(resolved.matrix),resolved.matrixAssumed,int(resolved.transfer),resolved.transferAssumed,resolved.displayReferred709,resolved.preserveSdrCodeValues,workingTransferCode(resolved)));
+    lastInputTransfer_=resolved.transfer;
     if(resolved.isHdrPath()&&!resolved.scRgb&&(reset||!realFrameIndex_)){
         veyra::log::info("hdr-route",std::format("input={} range={} matrix=BT2020-NCL primaries=BT2020 decode={} working={} output={} toneMap={} hdrReferenceWhiteNits=203 hlgReferencePeakNits=1000; SDR workingTransfer field is unused for PQ/HLG",
             resolved.transfer==TransferFunction::HLG?"HLG":"PQ",resolved.range==ColorRange::Full?"full":"limited",
@@ -4530,7 +4557,10 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
     applyPsycho(list,parity);
     previousSource_=sourceFrameId;
     const bool fgBackendAvailable=fgEnabled_&&fgCreated();
-    const unsigned fgMultiplier=previewMultiplier&&fgBackendAvailable?std::clamp(previewMultiplier,2u,desc_.fgMultiplier):desc_.fgMultiplier;
+    unsigned fgMultiplier=previewMultiplier&&fgBackendAvailable?std::clamp(previewMultiplier,2u,desc_.fgMultiplier):desc_.fgMultiplier;
+    // Gap filling: a longer source step than usual (a missed game frame) gets more
+    // generated frames, so every output frame still lasts one output interval.
+    if(fgBackendAvailable&&vfgBackend_&&desc_.fgGapFill&&!reset)fgMultiplier=gapFillMultiplier(out.batch.a100ns,out.batch.b100ns,fgMultiplier);
     out.fgCandidates=fgBackendAvailable?fgMultiplier-1:0;
     bool resetFg=reset||!prevValid_||fgHistorySkipped_;
     const bool historyValid=!resetFg;
@@ -4909,6 +4939,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     if(s.exclusion.enabled!=desc_.exclusion.enabled)return false;
     if(s.motionBlur!=desc_.motionBlur)return false;
     if(s.fgHighlightClamp!=desc_.fgHighlightClamp)return false;
+    if(s.fgGapFill!=desc_.fgGapFill)return false;
     if(s.deband!=desc_.deband)return false;
     if(s.sharpen!=desc_.sharpen)return false;
     if(s.detailMatch!=desc_.detailMatch)return false;

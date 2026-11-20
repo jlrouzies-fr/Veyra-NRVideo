@@ -281,6 +281,17 @@ void QmlPlayerBridge::setFgHighlightClamp(bool value) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "highlight clamp not saved");
     emit settingsChanged();
 }
+// Gap filling: on/off rebuilds the graph (the VFG pool grows for the extra frames).
+bool QmlPlayerBridge::fgGapFill() const { return settings().fgGapFill; }
+void QmlPlayerBridge::setFgGapFill(bool value) {
+    auto s = settings();
+    if (s.fgGapFill == value) return;
+    s.fgGapFill = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受补帧填缺，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("fgGapFill")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "gap fill not saved");
+    emit settingsChanged();
+}
 int QmlPlayerBridge::fgHighlightStrength() const { return int(std::lround(settings().fgHighlightStrength * 100.0f)); }
 void QmlPlayerBridge::setFgHighlightStrength(int percent) {
     percent = std::clamp(percent, 0, 100);

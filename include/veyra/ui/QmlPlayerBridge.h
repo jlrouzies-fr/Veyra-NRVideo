@@ -472,6 +472,8 @@ class QmlPlayerBridge : public QObject {
     Q_PROPERTY(int motionBlurShutter READ motionBlurShutter WRITE setMotionBlurShutter NOTIFY settingsChanged)
     // 高光稳定: EnhancementSettings::fgHighlightClamp / fgHighlightStrength (percent).
     Q_PROPERTY(bool fgHighlightClamp READ fgHighlightClamp WRITE setFgHighlightClamp NOTIFY settingsChanged)
+    // 补帧填缺: EnhancementSettings::fgGapFill.
+    Q_PROPERTY(bool fgGapFill READ fgGapFill WRITE setFgGapFill NOTIFY settingsChanged)
     Q_PROPERTY(int fgHighlightStrength READ fgHighlightStrength WRITE setFgHighlightStrength NOTIFY settingsChanged)
     // 去色带: EnhancementSettings::deband / debandThreshold (10-bit codes).
     Q_PROPERTY(bool deband READ deband WRITE setDeband NOTIFY settingsChanged)
@@ -1184,6 +1186,8 @@ public:
     void setMotionBlurShutter(int percent);
     bool fgHighlightClamp() const;
     void setFgHighlightClamp(bool value);
+    bool fgGapFill() const;
+    void setFgGapFill(bool value);
     int fgHighlightStrength() const;
     void setFgHighlightStrength(int percent);
     bool deband() const;

@@ -155,6 +155,7 @@ struct EnhanceGraphDesc {
     float motionBlurShutter=0.5f;
     bool fgHighlightClamp=false;
     float fgHighlightStrength=0.5f;
+    bool fgGapFill=false;
     bool deband=false;
     float debandThreshold=3.0f;
     bool sharpen=false;
@@ -734,6 +735,8 @@ public:
     // the ceiling could never engage and the control would silently do nothing.
     bool hdrInput() const { return desc_.hdrInput; }
     bool videoHdrActive() const {return desc_.convertVideoHdr();}
+    // Resolved transfer of the last real frame: names a capture signal (HDR10 / HLG).
+    TransferFunction inputTransfer() const {return lastInputTransfer_;}
     // Custom: this frame took the P7 enhancement-layer reconstruction path. The present
     // blit needs it to know that its 10-bit swapchain is quantising a 12-bit signal, which
     // is the case where truncation leaves visible banding and dithering is worth doing.
@@ -1004,6 +1007,13 @@ private:
     ComputePass highlightPass_;
     ComPtr<ID3D12Resource> highlightScratch_;
     bool highlightClampActive()const{return desc_.fgHighlightClamp&&!desc_.stillImage;}
+    // VFG pool and SDK maximum: room for a gap pair's extra frames when gap filling is on.
+    unsigned vfgPoolMultiplier()const{
+        return desc_.fgGapFill&&!desc_.stillImage&&desc_.frameGenerationBackend==engine::FrameGenerationBackend::Vfg?
+            std::min(2u*desc_.fgMultiplier,FrameBatch::Capacity):desc_.fgMultiplier;}
+    unsigned gapFillMultiplier(int64_t a100ns,int64_t b100ns,unsigned base);
+    std::array<int64_t,32> pairIntervals_{};unsigned pairIntervalCount_=0,pairIntervalNext_=0;
+    uint64_t gapFillPairs_=0;
     void applyHighlightClamp(ID3D12GraphicsCommandList*,unsigned generatedSlot,float phase);
     // Deband, the last pass on every output frame: real frames into their own textures,
     // generated ones in place.
@@ -1052,6 +1062,7 @@ private:
     ComputePass yuvPass_, encPass_, decPass_, blitPass_, uploadPass_, densifyPass_;
     ComputePass amdHdrEncodePass_, amdHdrRestorePass_;
     float toneMapPeakNits_=0; // latched per graph/source; never varies with frame brightness
+    TransferFunction lastInputTransfer_=TransferFunction::PQ; // resolved signal curve of the last real frame (format badge)
     ComputePass rgbPass_,hdrVideoSrPass_;
     ComputePass srPrescalePass_,srResolvePass_; // area shrinks: double SR reduction / supersample shrink after RTX Video SR
     ComputePass firstSrRestorePass_;
