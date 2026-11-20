@@ -24153,6 +24153,46 @@
    "en": "The engine did not accept frame gap filling; the previous setting is kept",
    "ja": "エンジンがフレーム抜けの補完を受け付けなかったため、以前の設定を維持します",
    "ko": "엔진이 프레임 공백 채우기를 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "顶部暗角补偿",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "頂部暗角補償",
+   "en": "Top vignette compensation",
+   "ja": "上部周辺減光の補正",
+   "ko": "상단 비네팅 보정"
+  },
+  {
+   "zh": "画面顶部明显比整体暗（暗角）时，在补帧之前提亮顶部 30%：顶边最强，向下渐弱；约一秒内缓慢变化，夜景和暗场景不动作，高光与界面不受影响。开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "畫面頂部明顯比整體暗（暗角）時，在補幀之前提亮頂部 30%：頂邊最強，向下漸弱；約一秒內緩慢變化，夜景和暗場景不動作，高光與介面不受影響。開關會重建畫面管線",
+   "en": "When the top of the picture is clearly darker than the whole (a vignette), brightens the top 30% before frame generation: strongest at the top edge, fading downwards. It changes slowly, over about a second; night and dark scenes are left alone, and highlights and the HUD are not affected. Switching it rebuilds the picture pipeline",
+   "ja": "画面上部が全体より明らかに暗い（周辺減光）とき、フレーム生成の前に上部 30% を明るくします。上端が最も強く、下へ行くほど弱まります。約 1 秒かけてゆっくり変化し、夜景や暗いシーンでは動作せず、ハイライトと UI には影響しません。切り替えると映像パイプラインを再構築します",
+   "ko": "화면 위쪽이 전체보다 뚜렷하게 어두울 때(비네팅) 프레임 생성 전에 위쪽 30%를 밝게 합니다. 위쪽 가장자리가 가장 강하고 아래로 갈수록 약해집니다. 약 1초에 걸쳐 천천히 변하며, 야경과 어두운 장면에서는 동작하지 않고 하이라이트와 UI에는 영향이 없습니다. 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "最大提亮",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "最大提亮",
+   "en": "Maximum lift",
+   "ja": "最大の持ち上げ",
+   "ko": "최대 밝기 보정"
+  },
+  {
+   "zh": "顶边最多提亮多少（100 = 一档曝光，即两倍亮度）",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "頂邊最多提亮多少（100 = 一檔曝光，即兩倍亮度）",
+   "en": "How much the top edge may be brightened at most (100 = one stop, twice as bright)",
+   "ja": "上端を最大どれだけ明るくするか（100 = 1 段、2 倍の明るさ）",
+   "ko": "위쪽 가장자리를 최대 얼마나 밝게 할지(100 = 한 스톱, 두 배 밝기)"
+  },
+  {
+   "zh": "引擎未接受顶部暗角补偿，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受頂部暗角補償，原設定保留",
+   "en": "The engine did not accept top vignette compensation; the previous setting is kept",
+   "ja": "エンジンが上部周辺減光の補正を受け付けなかったため、以前の設定を維持します",
+   "ko": "엔진이 상단 비네팅 보정을 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }

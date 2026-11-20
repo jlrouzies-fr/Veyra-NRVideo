@@ -487,6 +487,9 @@ class QmlPlayerBridge : public QObject {
     // Psycho 色调映射: EnhancementSettings::psycho / psychoPeakNits.
     Q_PROPERTY(bool psycho READ psycho WRITE setPsycho NOTIFY settingsChanged)
     Q_PROPERTY(int psychoPeakNits READ psychoPeakNits WRITE setPsychoPeakNits NOTIFY settingsChanged)
+    // 顶部暗角补偿: EnhancementSettings::topVignette / topVignetteStrength (percent of a stop).
+    Q_PROPERTY(bool topVignette READ topVignette WRITE setTopVignette NOTIFY settingsChanged)
+    Q_PROPERTY(int topVignetteStrength READ topVignetteStrength WRITE setTopVignetteStrength NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1206,6 +1209,10 @@ public:
     void setPsycho(bool value);
     int psychoPeakNits() const;
     void setPsychoPeakNits(int nits);
+    bool topVignette() const;
+    void setTopVignette(bool value);
+    int topVignetteStrength() const;
+    void setTopVignetteStrength(int percent);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

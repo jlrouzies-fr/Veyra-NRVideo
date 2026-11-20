@@ -1953,6 +1953,25 @@ VPage {
                                 }
                             }
                             VRow {
+                                label: qsTr("顶部暗角补偿")
+                                hint: qsTr("画面顶部明显比整体暗（暗角）时，在补帧之前提亮顶部 30%：顶边最强，向下渐弱；约一秒内缓慢变化，夜景和暗场景不动作，高光与界面不受影响。开关会重建画面管线")
+                                VSwitch { objectName: "list-top-vignette"; checked: veyra.topVignette; onToggled: checked => veyra.topVignette = checked }
+                            }
+                            VRow {
+                                label: qsTr("最大提亮")
+                                visible: veyra.topVignette
+                                hint: qsTr("顶边最多提亮多少（100 = 一档曝光，即两倍亮度）")
+                                VSlider {
+                                    objectName: "list-top-vignette-strength"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 100
+                                    from: 25; to: 200; stepSize: 5
+                                    value: veyra.topVignetteStrength
+                                    onMoved: value => veyra.topVignetteStrength = Math.round(value)
+                                }
+                            }
+                            VRow {
                                 label: qsTr("Psycho 色调映射")
                                 hint: qsTr("在补帧之前对每个真实帧做 Psycho 色调映射（RenoDX）：中灰不变，高光平滑压向所选峰值并保持色相，用于游戏高光过强时；仅限 HDR 输出。开关会重建画面管线")
                                 VSwitch {

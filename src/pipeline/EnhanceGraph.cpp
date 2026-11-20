@@ -1096,6 +1096,16 @@ bool EnhanceGraph::createResources()
         if(!psychoScratch_)return false;
         veyra::log::info("psycho",std::format("enabled peak={:.0f} nits {}x{}",desc_.psychoPeakNits,workW_,workH_));
     }
+    if(topVignetteActive()){
+        topVigGroupsX_=(workW_+63)/64;topVigGroupsY_=(workH_+63)/64;
+        topVigDepthRows_=std::max(1u,unsigned(std::ceil(workH_*0.30)));
+        topVigPartial_=makeTexture(context_.device(),topVigGroupsX_,topVigGroupsY_,DXGI_FORMAT_R32G32B32A32_FLOAT,true);
+        topVigState_=makeTexture(context_.device(),1,1,DXGI_FORMAT_R32G32B32A32_FLOAT,true);
+        topVigScratch_=makeTexture(context_.device(),workW_,topVigDepthRows_,outputFormat(),true);
+        if(!topVigPartial_||!topVigState_||!topVigScratch_)return false;
+        topVigReset_=true;
+        veyra::log::info("top-vignette",std::format("enabled maxStops={:.2f} depthRows={} groups={}x{}",desc_.topVignetteStrength,topVigDepthRows_,topVigGroupsX_,topVigGroupsY_));
+    }
     if(detailMatchActive()){
         detailGroupsX_=(workW_+15)/16;detailGroupsY_=(workH_+15)/16;
         for(auto& texture:detailEnergyReal_){
@@ -2273,6 +2283,14 @@ bool EnhanceGraph::createComputePasses()
     }
     if(psychoActive()&&(!psychoPass_.loadShader("Psycho.dxil",cs)||
        !psychoPass_.create(context_.device(),cs,2*2,1,1,8,0,true)))return false;
+    if(topVignetteActive()){
+        if(!topVigMeasurePass_.loadShader("TopVignetteMeasure.dxil",cs)||
+           !topVigMeasurePass_.create(context_.device(),cs,2*2,1,1,8,0,true))return false;
+        if(!topVigSolvePass_.loadShader("TopVignetteSolve.dxil",cs)||
+           !topVigSolvePass_.create(context_.device(),cs,2,1,1,8,0,true))return false;
+        if(!topVigApplyPass_.loadShader("TopVignetteApply.dxil",cs)||
+           !topVigApplyPass_.create(context_.device(),cs,2*3,2,1,8,0,true))return false;
+    }
     for(auto& instance:additionalColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     for(auto& instance:nodeColorInstances_)if(instance&&!instance->createPass(context_.device()))return false;
     {
@@ -2785,6 +2803,18 @@ bool EnhanceGraph::createViews()
             if(viewsUav)makeUav(context_.device(),psychoScratch_.Get(),outputFormat(),cpu(psychoPass_,parity*2+1));
         }
     }
+    if(topVignetteActive()){
+        constexpr auto f32x4=DXGI_FORMAT_R32G32B32A32_FLOAT;
+        for(unsigned parity=0;parity<2;++parity){
+            if(viewsTex)stagedSrv(videoFrame_[parity].Get(),outputFormat(),topVigMeasurePass_,parity*2);
+            if(viewsUav)makeUav(context_.device(),topVigPartial_.Get(),f32x4,cpu(topVigMeasurePass_,parity*2+1));
+            if(viewsTex){stagedSrv(videoFrame_[parity].Get(),outputFormat(),topVigApplyPass_,parity*3);
+                         stagedSrv(topVigState_.Get(),f32x4,topVigApplyPass_,parity*3+1);}
+            if(viewsUav)makeUav(context_.device(),topVigScratch_.Get(),outputFormat(),cpu(topVigApplyPass_,parity*3+2));
+        }
+        if(viewsTex)stagedSrv(topVigPartial_.Get(),f32x4,topVigSolvePass_,0);
+        if(viewsUav)makeUav(context_.device(),topVigState_.Get(),f32x4,cpu(topVigSolvePass_,1));
+    }
     return true;
 }
 
@@ -3017,6 +3047,55 @@ void EnhanceGraph::applyPsycho(ID3D12GraphicsCommandList* list,unsigned parity){
     list->CopyResource(frame,psychoScratch_.Get());
     tracker_.transition(list,frame,D3D12_RESOURCE_STATE_COMMON);
     tracker_.transition(list,psychoScratch_.Get(),D3D12_RESOURCE_STATE_COMMON);
+}
+
+// Top vignette compensation of the finished real frame, before frame generation reads it:
+// measure, ease the lift, brighten the top rows (see TopVignette*.hlsl).
+void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned parity){
+    if(!topVignetteActive())return;
+    auto* frame=videoFrame_[parity].Get();
+    auto* partial=topVigPartial_.Get();auto* state=topVigState_.Get();auto* scratch=topVigScratch_.Get();
+    const float mode=hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f;
+    constexpr float sdrWhiteNits=100.0f;
+    tracker_.transition(list,frame,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,partial,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    {
+        const float c[8]={uintBits(workW_),uintBits(workH_),mode,float(workH_)*0.10f,sdrWhiteNits,0,0,0};
+        const auto heap=topVigMeasurePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+        topVigMeasurePass_.bind(list,c,heap+parity*2*topVigMeasurePass_.increment,heap+(parity*2+1)*topVigMeasurePass_.increment);
+        list->Dispatch(topVigGroupsX_,topVigGroupsY_,1);
+    }
+    tracker_.uavBarrier(list,partial);
+    tracker_.transition(list,partial,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,state,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    {
+        // Allowance 1 stop; about 0.8 s to settle at 30 real frames/s; off below a 5 nit scene
+        // geometric mean, full from 20 nits (night and dark interiors stay untouched).
+        const float c[8]={uintBits(topVigGroupsX_),uintBits(topVigGroupsY_),desc_.topVignetteStrength,1.0f,0.04f,
+            uintBits(topVigReset_?1u:0u),5.0f,20.0f};
+        const auto heap=topVigSolvePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+        topVigSolvePass_.bind(list,c,heap,heap+topVigSolvePass_.increment);
+        list->Dispatch(1,1,1);
+        topVigReset_=false;
+    }
+    tracker_.uavBarrier(list,state);
+    tracker_.transition(list,state,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    tracker_.transition(list,scratch,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    {
+        const float c[8]={uintBits(workW_),uintBits(workH_),mode,float(topVigDepthRows_),sdrWhiteNits,0,0,0};
+        const auto heap=topVigApplyPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
+        topVigApplyPass_.bind(list,c,heap+parity*3*topVigApplyPass_.increment,heap+(parity*3+2)*topVigApplyPass_.increment);
+        list->Dispatch((workW_+15)/16,(topVigDepthRows_+15)/16,1);
+    }
+    tracker_.uavBarrier(list,scratch);
+    tracker_.transition(list,scratch,D3D12_RESOURCE_STATE_COPY_SOURCE);
+    tracker_.transition(list,frame,D3D12_RESOURCE_STATE_COPY_DEST);
+    D3D12_TEXTURE_COPY_LOCATION dst{},src{};
+    dst.pResource=frame;dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;dst.SubresourceIndex=0;
+    src.pResource=scratch;src.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;src.SubresourceIndex=0;
+    const D3D12_BOX box{0,0,0,workW_,topVigDepthRows_,1};
+    list->CopyTextureRegion(&dst,0,0,0,&src,&box);
+    for(auto* r:{frame,scratch,partial,state})tracker_.transition(list,r,D3D12_RESOURCE_STATE_COMMON);
 }
 
 // Fine-detail energy per 16px block of `source` into `target` (see DetailEnergy.hlsl).
@@ -4554,6 +4633,7 @@ bool EnhanceGraph::process(const AVFrame* frame, double ptsMs, bool reset, Frame
         presentMotionValid_[parity]=(desc_.fgUsesFlow()&&!desc_.fgMotionProbe?haveFlow:prevValid_)&&!reset;
         motionPreviousSource_[parity]=previousSource_;
     }
+    applyTopVignette(list,parity);
     applyPsycho(list,parity);
     previousSource_=sourceFrameId;
     const bool fgBackendAvailable=fgEnabled_&&fgCreated();
@@ -4944,6 +5024,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     if(s.sharpen!=desc_.sharpen)return false;
     if(s.detailMatch!=desc_.detailMatch)return false;
     if(s.psycho!=desc_.psycho)return false;
+    if(s.topVignette!=desc_.topVignette)return false;
     if((s.nrHoldStrength>0.0f)!=(desc_.nrHoldStrength>0.0f))return false;
     // NR inference reuse: a preview graph allocates its pass only when built
     // with reuse on, so on/off rebuilds; Auto and the manual ratios are live.
@@ -5003,6 +5084,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.sharpenStrength=s.sharpenStrength;
     desc_.detailMatchStrength=s.detailMatchStrength;
     desc_.psychoPeakNits=s.psychoPeakNits;
+    desc_.topVignetteStrength=s.topVignetteStrength;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
@@ -5294,6 +5376,7 @@ void EnhanceGraph::shutdown()
     detailEnergyGen_.Reset();detailEnergyGenLast_.Reset();detailScratch_.Reset();
     for(auto& r:detailVideo_)r.Reset();
     psychoPass_={};psychoScratch_.Reset();
+    topVigMeasurePass_={};topVigSolvePass_={};topVigApplyPass_={};topVigPartial_.Reset();topVigState_.Reset();topVigScratch_.Reset();
     for(auto& r:exclusionVideo_)r.Reset();
     for(auto& r:exclusionUi_)r.Reset();
     for(auto& r:sourceReferences_)r.Reset();for(auto& r:baseReferences_)r.Reset();workRgba_.Reset();

@@ -164,6 +164,8 @@ struct EnhanceGraphDesc {
     float detailMatchStrength=0.7f;
     bool psycho=false;
     float psychoPeakNits=400.0f;
+    bool topVignette=false;
+    float topVignetteStrength=1.0f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -1047,6 +1049,14 @@ private:
     ComPtr<ID3D12Resource> psychoScratch_;
     bool psychoActive()const{return desc_.psycho&&!desc_.stillImage&&(hdr10Output()||desc_.hdrOutput);}
     void applyPsycho(ID3D12GraphicsCommandList*,unsigned parity);
+    // Top vignette compensation, in place on each real frame before frame generation
+    // (TopVignetteMeasure / Solve / Apply). The state texture carries the eased lift.
+    ComputePass topVigMeasurePass_,topVigSolvePass_,topVigApplyPass_;
+    ComPtr<ID3D12Resource> topVigPartial_,topVigState_,topVigScratch_;
+    unsigned topVigGroupsX_=0,topVigGroupsY_=0,topVigDepthRows_=0;
+    bool topVigReset_=true;
+    bool topVignetteActive()const{return desc_.topVignette&&!desc_.stillImage;}
+    void applyTopVignette(ID3D12GraphicsCommandList*,unsigned parity);
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};
     ComPtr<ID3D12Resource> nrZeroMotion_;

@@ -395,6 +395,28 @@ void QmlPlayerBridge::setPsychoPeakNits(int nits) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "psycho peak not saved");
     emit settingsChanged();
 }
+// Top vignette compensation: on/off rebuilds the graph; the strength is live.
+bool QmlPlayerBridge::topVignette() const { return settings().topVignette; }
+void QmlPlayerBridge::setTopVignette(bool value) {
+    auto s = settings();
+    if (s.topVignette == value) return;
+    s.topVignette = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("topVignette")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "top vignette not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::topVignetteStrength() const { return int(std::lround(settings().topVignetteStrength * 100.0f)); }
+void QmlPlayerBridge::setTopVignetteStrength(int percent) {
+    percent = std::clamp(percent, 25, 200);
+    auto s = settings();
+    if (int(std::lround(s.topVignetteStrength * 100.0f)) == percent) return;
+    s.topVignetteStrength = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("topVignetteStrength")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "top vignette strength not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;
