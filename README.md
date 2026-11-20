@@ -77,7 +77,7 @@ I've received creator fees from a community-created Veyra token. These contribut
 
 <br>
 
-**112K+ Veyra portable-package downloads** (112,870) · **140K+ total GitHub Release asset downloads** (140,848 including source archives, checksums and images). [GitHub Releases](https://github.com/Likely7/Veyra-NRVideo/releases) · As of 2026-11-15. Download events, not unique users.
+**178K+ Veyra portable-package downloads** (178,996, including historical `.7z` packages and virtual-camera builds) · **214K+ total GitHub Release asset downloads** (214,277 including source archives, checksums and images). [GitHub Releases](https://github.com/Likely7/Veyra-NRVideo/releases) · As of 2026-11-18 (Pacific Time). Download events, not unique users.
 
 <br>
 
@@ -310,7 +310,7 @@ Original code: GPL-3.0. The combined Chiaki streaming application is also subjec
 <p align="center">
   <img src="https://raw.githubusercontent.com/Likely7/Veyra-NRVideo/v1.4.0/docs/images/1.4.0/donate-wechat.jpg" alt="WeChat donation" width="220">
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/Likely7/Veyra-NRVideo/main/docs/images/community/group-13-20261116.png" alt="Veyra community group 13" width="220">
+  <img src="https://raw.githubusercontent.com/Likely7/Veyra-NRVideo/main/docs/images/community/group-15-20261119.png" alt="Veyra community group 15" width="220">
 </p>
 
-Left: optional donation, no feature restrictions. Right: community group 13; QR valid **before 2026-11-23** as shown. Check repository updates after expiry.
+Left: optional donation, no feature restrictions. Right: community group 15; QR valid **before 2026-11-26** as shown. Check repository updates after expiry.

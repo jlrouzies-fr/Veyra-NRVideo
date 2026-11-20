@@ -60,7 +60,7 @@ I've received creator fees from a community-created Veyra token. These contribut
 
 ---
 
-**Veyra Windows 免安装软件包累计下载 7.9 万+ 次**（截至 2026-11-08，79,332 次）；**GitHub Release 全部附件累计下载 10.3 万+ 次**（103,337 次，包含源码包、校验文件及图片等）。[GitHub Releases](https://github.com/Likely7/Veyra-NRVideo/releases) · 下载次数不是独立用户数。
+**Veyra Windows 免安装软件包累计下载 17.8 万+ 次**（截至 2026-11-18 美西时间，178,996 次，包含早期 `.7z` 软件包及虚拟摄像头版本）；**GitHub Release 全部附件累计下载 21.4 万+ 次**（214,277 次，包含源码包、校验文件及图片等）。[GitHub Releases](https://github.com/Likely7/Veyra-NRVideo/releases) · 下载次数不是独立用户数。
 
 [下载2.1.9免安装版](https://github.com/Likely7/Veyra-NRVideo/releases/tag/v2.1.9) · [📖 英文使用文档 / GitHub Wiki](https://github.com/Likely7/Veyra-NRVideo/wiki) · [完整更新（中文/English）](docs/RELEASE_NOTES_2.1.9.md) · [反馈](https://github.com/Likely7/Veyra-NRVideo/issues)
 
@@ -254,7 +254,7 @@ Veyra 原有代码 GPL-3.0；含 Chiaki 串流的组合程序同时适用 AGPL-3
 <p align="center">
   <img src="https://raw.githubusercontent.com/Likely7/Veyra-NRVideo/v1.4.0/docs/images/1.4.0/donate-wechat.jpg" alt="微信赞助" width="220">
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/Likely7/Veyra-NRVideo/main/docs/images/community/group-13-20261116.png" alt="Veyra 交流群 13" width="220">
+  <img src="https://raw.githubusercontent.com/Likely7/Veyra-NRVideo/main/docs/images/community/group-15-20261119.png" alt="Veyra 交流群 15" width="220">
 </p>
 
-左：微信赞助（自愿，不影响功能）；右：交流群 13。群码按图片标注于 **2026-11-23 前**有效，过期请查看仓库更新。
+左：微信赞助（自愿，不影响功能）；右：交流群 15。群码按图片标注于 **2026-11-26 前**有效，过期请查看仓库更新。
