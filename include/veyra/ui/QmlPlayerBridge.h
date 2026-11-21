@@ -588,6 +588,107 @@ class QmlPlayerBridge : public QObject {
     // True while the engine has not yet applied what the UI asked for. The UI
     // shows the pending value and marks it, rather than lying about the state.
     Q_PROPERTY(bool applying READ applying NOTIFY snapshotChanged)
+    // 底部暗角补偿: EnhancementSettings::bottomVignette / bottomVignetteStrength (percent of a stop).
+    Q_PROPERTY(bool bottomVignette READ bottomVignette WRITE setBottomVignette NOTIFY settingsChanged)
+    Q_PROPERTY(int bottomVignetteStrength READ bottomVignetteStrength WRITE setBottomVignetteStrength NOTIFY settingsChanged)
+    // Depth in percent of the height, roll-off exponent in percent (150 = 1.5).
+    Q_PROPERTY(int bottomVignetteDepth READ bottomVignetteDepth WRITE setBottomVignetteDepth NOTIFY settingsChanged)
+    Q_PROPERTY(int bottomVignetteRolloff READ bottomVignetteRolloff WRITE setBottomVignetteRolloff NOTIFY settingsChanged)
+    Q_PROPERTY(int bottomVignetteAllowance READ bottomVignetteAllowance WRITE setBottomVignetteAllowance NOTIFY settingsChanged)
+    Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
+    Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
+    Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
+    Q_PROPERTY(int hdrOutputMode READ hdrOutputMode WRITE setHdrOutputMode NOTIFY settingsChanged)
+    Q_PROPERTY(int fgMotionSource READ fgMotionSource WRITE setFgMotionSource NOTIFY settingsChanged)
+    Q_PROPERTY(int srMotionSource READ srMotionSource WRITE setSrMotionSource NOTIFY settingsChanged)
+    Q_PROPERTY(int nrMotionSource READ nrMotionSource WRITE setNrMotionSource NOTIFY settingsChanged)
+    // Presentation: display sync 0 允许撕裂 1 垂直同步 2 自动; output cap 0 关闭
+    // 1 跟随显示器 2 自定义 (+ fps). Owned by XeSS when presentationOwned.
+    Q_PROPERTY(int displaySync READ displaySync WRITE setDisplaySync NOTIFY presentationChanged)
+    // 可变刷新 switch (persisted with the presentation settings) and the
+    // presenting monitor's VRR level: 0 unknown, 1 the monitor cannot do VRR
+    // (switch greyed), 2 it can but the driver setting is off, 3 possible,
+    // 4 active; vrrHint explains it beside the switch.
+    Q_PROPERTY(bool variableRefresh READ variableRefresh WRITE setVariableRefresh NOTIFY presentationChanged)
+    // Explicit per-application driver setup, independent of the presentation switch.
+    Q_PROPERTY(QObject* nvidiaVrrProfile READ nvidiaVrrProfile CONSTANT)
+    Q_PROPERTY(int vrrState READ vrrState NOTIFY perfChanged)
+    Q_PROPERTY(QString vrrHint READ vrrHint NOTIFY perfChanged)
+    // Display state of the shown monitor for the 信号 card: Windows HDR (-1
+    // unknown, 0 off, 1 on), refresh rate (0 unknown) and a short VRR summary.
+    // Everything is read on events only (startup, another monitor, a display
+    // change, the switch turned on); 刷新显示器状态 (recheckDisplay) asks the
+    // driver again, and displayChecking is true until that answer arrives.
+    Q_PROPERTY(int displayHdr READ displayHdr NOTIFY perfChanged)
+    Q_PROPERTY(double displayRefreshHz READ displayRefreshHz NOTIFY perfChanged)
+    Q_PROPERTY(QString vrrSummary READ vrrSummary NOTIFY perfChanged)
+    Q_PROPERTY(bool displayChecking READ displayChecking NOTIFY perfChanged)
+    Q_PROPERTY(int outputRateMode READ outputRateMode WRITE setOutputRateMode NOTIFY presentationChanged)
+    Q_PROPERTY(double outputCustomFps READ outputCustomFps WRITE setOutputCustomFps NOTIFY presentationChanged)
+    Q_PROPERTY(bool presentationOwned READ presentationOwned NOTIFY snapshotChanged)
+    Q_PROPERTY(QString presentationStatus READ presentationStatus NOTIFY snapshotChanged)
+    // 显示: compare 0 增强 1 原画 2 分屏; base false 输入原画 / true 增强前底图;
+    // split 0..1 of the picture. Aspect 0 适应 1 原始 2 填充.
+    Q_PROPERTY(int compareMode READ compareMode WRITE setCompareMode NOTIFY compareChanged)
+    Q_PROPERTY(bool compareBase READ compareBase WRITE setCompareBase NOTIFY compareChanged)
+    Q_PROPERTY(double compareSplit READ compareSplit NOTIFY compareChanged)
+    Q_PROPERTY(int aspectMode READ aspectMode WRITE setAspectMode NOTIFY compareChanged)
+    // Measured audio/video skew of a live source (ms); unknown otherwise.
+    Q_PROPERTY(double audioSkewMs READ audioSkewMs NOTIFY snapshotChanged)
+    Q_PROPERTY(bool audioSkewKnown READ audioSkewKnown NOTIFY snapshotChanged)
+    // Export: an estimate of the output size ("" when there is nothing to base it on).
+    Q_PROPERTY(QString exportSizeEstimate READ exportSizeEstimate NOTIFY exportChanged)
+    // 继续上次: {kind: capture|ps5|screen, label, summary}; empty when none.
+    Q_PROPERTY(QVariantMap lastSource READ lastSource NOTIFY preferencesChanged)
+    // P5 (2026-09-29): what is playing, for the page headers.
+    // sourceKind: "" | file | image | capture | ps5 | screen.
+    Q_PROPERTY(QString sourceKind READ sourceKind NOTIFY snapshotChanged)
+    Q_PROPERTY(QString sourceTitle READ sourceTitle NOTIFY snapshotChanged)
+    // "1080p60 · YUY2 · SDR": reported values only.
+    Q_PROPERTY(QString sourceFormatText READ sourceFormatText NOTIFY snapshotChanged)
+    Q_PROPERTY(QString sourceRateText READ sourceRateText NOTIFY snapshotChanged)
+    // 调色 undo / redo / copy / paste for the selected colour layer.
+    Q_PROPERTY(bool colourCanUndo READ colourCanUndo NOTIFY settingsChanged)
+    Q_PROPERTY(bool colourCanRedo READ colourCanRedo NOTIFY settingsChanged)
+    Q_PROPERTY(bool colourCanPaste READ colourCanPaste NOTIFY settingsChanged)
+    // Export queue rows: [{name, input, output, state, progress, note, current}].
+    Q_PROPERTY(QVariantList exportItems READ exportItems NOTIFY exportChanged)
+    Q_PROPERTY(QObject* exportQueueModel READ exportQueueModel CONSTANT)
+    Q_PROPERTY(int exportContainer READ exportContainer WRITE setExportContainer NOTIFY exportChanged)
+    Q_PROPERTY(int exportReadyCount READ exportReadyCount NOTIFY exportChanged)
+    Q_PROPERTY(QVariantList exportTracks READ exportTracks NOTIFY exportChanged)
+    Q_PROPERTY(int exportAudioPolicy READ exportAudioPolicy NOTIFY exportChanged)
+    Q_PROPERTY(int exportSubtitlePolicy READ exportSubtitlePolicy NOTIFY exportChanged)
+    Q_PROPERTY(bool exportSelectionEditable READ exportSelectionEditable NOTIFY exportChanged)
+    Q_PROPERTY(bool exportCompletionSound READ exportCompletionSound WRITE setExportCompletionSound NOTIFY exportChanged)
+    // Capture dialog preview: the session's poster still (the engine's own
+    // first-frame poster), as a data URL; "" when the session has none. Never a
+    // periodic readback: that would stall the live capture path.
+    Q_PROPERTY(QString capturePreviewUrl READ capturePreviewUrl NOTIFY snapshotChanged)
+    Q_PROPERTY(QString captureSignalText READ captureSignalText NOTIFY snapshotChanged)
+    Q_PROPERTY(QString captureSignalLevel READ captureSignalLevel NOTIFY snapshotChanged)
+    // A live source (PS5 / capture) that is still opening: what the picture area
+    // says meanwhile ("" once it plays or when nothing is opening).
+    Q_PROPERTY(QString liveOpeningText READ liveOpeningText NOTIFY snapshotChanged)
+    // Network / server playback (#48): the signal-panel line ("缓冲 18.2 s · 下载 12.4 MB/s · 重连 0"),
+    // whether playback is paused to buffer, and the reason text shown while it is.
+    Q_PROPERTY(bool networkActive READ networkActive NOTIFY snapshotChanged)
+    Q_PROPERTY(bool networkHolding READ networkHolding NOTIFY snapshotChanged)
+    Q_PROPERTY(QString networkSummary READ networkSummary NOTIFY snapshotChanged)
+    Q_PROPERTY(QString networkNotice READ networkNotice NOTIFY snapshotChanged)
+    // Protection regions as the engine holds them: [{left,top,right,bottom,ellipse}].
+    Q_PROPERTY(QVariantList protectionRegions READ protectionRegions NOTIFY protectionChanged)
+    Q_PROPERTY(QString protectionDrawShape READ protectionDrawShape NOTIFY protectionDrawChanged)
+    Q_PROPERTY(double volume READ volume WRITE setVolume NOTIFY snapshotChanged)
+    Q_PROPERTY(double maximumVolume READ maximumVolume CONSTANT)
+    Q_PROPERTY(bool muted READ muted WRITE setMuted NOTIFY snapshotChanged)
+    Q_PROPERTY(double playbackSpeed READ playbackSpeed NOTIFY snapshotChanged)
+    Q_PROPERTY(double playbackRate READ playbackRate WRITE setPlaybackRate NOTIFY snapshotChanged)
+    Q_PROPERTY(double minimumPlaybackRate READ minimumPlaybackRate CONSTANT)
+    Q_PROPERTY(double maximumPlaybackRate READ maximumPlaybackRate CONSTANT)
+    // True while the engine has not yet applied what the UI asked for. The UI
+    // shows the pending value and marks it, rather than lying about the state.
+    Q_PROPERTY(bool applying READ applying NOTIFY snapshotChanged)
 
     // --- effect chain ------------------------------------------------------
     // The chain as data. List mode renders it; node mode renders the same
@@ -1223,6 +1324,16 @@ public:
     void setTopVignetteRolloff(int percent);
     int topVignetteAllowance() const;
     void setTopVignetteAllowance(int percent);
+    bool bottomVignette() const;
+    void setBottomVignette(bool value);
+    int bottomVignetteStrength() const;
+    void setBottomVignetteStrength(int percent);
+    int bottomVignetteDepth() const;
+    void setBottomVignetteDepth(int percent);
+    int bottomVignetteRolloff() const;
+    void setBottomVignetteRolloff(int percent);
+    int bottomVignetteAllowance() const;
+    void setBottomVignetteAllowance(int percent);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

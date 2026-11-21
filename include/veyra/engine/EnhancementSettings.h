@@ -538,6 +538,12 @@ struct EnhancementSettings {
     float topVignetteAllowance=1.0f; // stops the top may be darker untouched, 0..2
     float topVignetteDepth=0.30f;    // share of the height, 0.10..0.60
     float topVignetteRolloff=1.5f;   // exponent, 0.5 (gentle, reaches far) .. 4 (hugs the edge)
+    // The same for the bottom edge, measured and eased on its own.
+    bool bottomVignette=false;
+    float bottomVignetteStrength=1.0f;
+    float bottomVignetteAllowance=1.0f;
+    float bottomVignetteDepth=0.30f;
+    float bottomVignetteRolloff=1.5f;
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -721,6 +727,10 @@ struct EnhancementSettings {
         if(!(topVignetteAllowance>=0.0f&&topVignetteAllowance<=2.0f))return "invalid top vignette allowance";
         if(!(topVignetteDepth>=0.10f&&topVignetteDepth<=0.60f))return "invalid top vignette depth";
         if(!(topVignetteRolloff>=0.5f&&topVignetteRolloff<=4.0f))return "invalid top vignette rolloff";
+        if(!(bottomVignetteStrength>=0.25f&&bottomVignetteStrength<=6.0f))return "invalid bottom vignette strength";
+        if(!(bottomVignetteAllowance>=0.0f&&bottomVignetteAllowance<=2.0f))return "invalid bottom vignette allowance";
+        if(!(bottomVignetteDepth>=0.10f&&bottomVignetteDepth<=0.60f))return "invalid bottom vignette depth";
+        if(!(bottomVignetteRolloff>=0.5f&&bottomVignetteRolloff<=4.0f))return "invalid bottom vignette rolloff";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.

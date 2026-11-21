@@ -1832,6 +1832,67 @@ VPage {
                     }
                 }
                 VRow {
+                    label: qsTr("底部暗角补偿")
+                    hint: qsTr("画面底部明显比整体暗（暗角）时，在补帧之前提亮底部：底边最强，向上渐弱；与顶部分别测量。约一秒内缓慢变化，夜景和暗场景不动作，高光不受影响（底部的小地图等界面会一起变亮）。开关会重建画面管线")
+                    VSwitch { objectName: "node-bottom-vignette"; checked: veyra.bottomVignette; onToggled: checked => veyra.bottomVignette = checked }
+                }
+                VRow {
+                    label: qsTr("最大提亮")
+                    visible: veyra.bottomVignette
+                    hint: qsTr("底边最多提亮多少（100 = 一档曝光，即两倍亮度）")
+                    VSlider {
+                        objectName: "node-bottom-vignette-strength"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 100
+                        from: 25; to: 600; stepSize: 5
+                        value: veyra.bottomVignetteStrength
+                        onMoved: value => veyra.bottomVignetteStrength = Math.round(value)
+                    }
+                }
+                VRow {
+                    label: qsTr("容许暗度")
+                    visible: veyra.bottomVignette
+                    hint: qsTr("底部比整体暗多少以内不做补偿（100 = 一档）：越小补偿越完整，0 尽量与整体一致；过小可能显得发灰")
+                    VSlider {
+                        objectName: "node-bottom-vignette-allowance"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 100
+                        from: 0; to: 200; stepSize: 5
+                        value: veyra.bottomVignetteAllowance
+                        onMoved: value => veyra.bottomVignetteAllowance = Math.round(value)
+                    }
+                }
+                VRow {
+                    label: qsTr("作用深度")
+                    visible: veyra.bottomVignette
+                    hint: qsTr("从底边往上作用到画面高度的多少（%）：越大，补偿延伸得越高")
+                    VSlider {
+                        objectName: "node-bottom-vignette-depth"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 30
+                        from: 10; to: 60; stepSize: 1
+                        value: veyra.bottomVignetteDepth
+                        onMoved: value => veyra.bottomVignetteDepth = Math.round(value)
+                    }
+                }
+                VRow {
+                    label: qsTr("衰减曲线")
+                    visible: veyra.bottomVignette
+                    hint: qsTr("从底边到作用深度的衰减方式：小于 100 缓和、延伸得远；大于 100 集中在底边附近（150 = 默认）")
+                    VSlider {
+                        objectName: "node-bottom-vignette-rolloff"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 150
+                        from: 50; to: 400; stepSize: 10
+                        value: veyra.bottomVignetteRolloff
+                        onMoved: value => veyra.bottomVignetteRolloff = Math.round(value)
+                    }
+                }
+                VRow {
                     label: qsTr("Psycho 色调映射")
                     hint: qsTr("在补帧之前对每个真实帧做 Psycho 色调映射（RenoDX）：中灰不变，高光平滑压向所选峰值并保持色相，用于游戏高光过强时；仅限 HDR 输出。开关会重建画面管线")
                     VSwitch { objectName: "node-psycho"; checked: veyra.psycho; onToggled: checked => veyra.psycho = checked }

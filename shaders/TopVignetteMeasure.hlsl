@@ -1,4 +1,5 @@
-// Top vignette compensation, step 1 of 3: log luminance of the top band and of the whole frame.
+// Edge vignette compensation, step 1 of 3: log luminance of the edge band (top, or bottom with
+// fromBottom) and of the whole frame.
 // One sample per 4x4 pixels; each 16x16 group writes (sum log top, top count, sum log all,
 // all count) for its 64x64 pixel block.
 #include "HdrColor.hlsli"
@@ -7,9 +8,10 @@ RWTexture2D<float4> partialTex : register(u0);   // groupsX x groupsY
 cbuffer Constants : register(b0) {
     uint width, height;
     float outputMode;   // 0 sRGB, 1 scRGB, 2 PQ
-    float bandRows;     // rows counted as the top band
+    float bandRows;     // rows counted as the edge band
     float sdrWhiteNits;
-    float pad0, pad1, pad2;
+    float fromBottom;   // 1: the band is counted from the bottom edge
+    float pad1, pad2;
 };
 
 float nits(float3 encoded) {
@@ -29,7 +31,8 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint index :
     if(pixel.x<width&&pixel.y<height){
         const float l=log(max(nits(frameTex[pixel].rgb),0.5));
         v.zw=float2(l,1);
-        if(float(pixel.y)<bandRows)v.xy=float2(l,1);
+        const float row=fromBottom>0.5?float(height-1-pixel.y):float(pixel.y);
+        if(row<bandRows)v.xy=float2(l,1);
     }
     sums[index]=v;
     GroupMemoryBarrierWithGroupSync();

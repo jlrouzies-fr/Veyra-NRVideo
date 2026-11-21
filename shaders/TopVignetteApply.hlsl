@@ -1,5 +1,5 @@
-// Top vignette compensation, step 3 of 3: brighten the top rows by the eased lift, strongest at
-// the top edge and fading as (1 - y/depth)^rolloff to nothing at `depth` of the height. Bright pixels (HUD, sun, clouds
+// Edge vignette compensation, step 3 of 3: brighten the rows of one edge by its eased lift,
+// strongest at the edge and fading as (1 - y/depth)^rolloff to nothing at `depth` of the height. Bright pixels (HUD, sun, clouds
 // far above the scene level) are left alone. Only the top `depth` rows are dispatched.
 #include "HdrColor.hlsli"
 Texture2D<float4> frameTex : register(t0);
@@ -10,8 +10,9 @@ cbuffer Constants : register(b0) {
     float outputMode;   // 0 sRGB, 1 scRGB, 2 PQ
     float depthRows;
     float sdrWhiteNits;
-    float rolloff;      // exponent of (1 - y/depth)
-    float pad1, pad2;
+    float rolloff;      // exponent of (1 - distance/depth)
+    float fromBottom;   // 1: the bottom edge; output row r is frame row height-depth+r
+    float pad2;
 };
 
 float3 toLinear(float3 e) {
@@ -28,10 +29,14 @@ float3 fromLinear(float3 l) {
 
 [numthreads(16,16,1)]
 void main(uint3 id : SV_DispatchThreadID) {
-    if(id.x>=width||id.y>=height)return;
-    const float4 centre=frameTex[id.xy];
-    const float4 state=stateTex[uint2(0,0)];
-    const float t=saturate(1.0-(float(id.y)+0.5)/depthRows);
+    const uint rows=uint(depthRows);
+    if(id.x>=width||id.y>=rows||rows>height)return;
+    const bool bottom=fromBottom>0.5;
+    const uint frameRow=bottom?height-rows+id.y:id.y;
+    const float4 centre=frameTex[uint2(id.x,frameRow)];
+    const float4 state=stateTex[uint2(bottom?1:0,0)];
+    const float distance=float(bottom?height-1-frameRow:frameRow);
+    const float t=saturate(1.0-(distance+0.5)/depthRows);
     const float lift=state.x*pow(t,rolloff);
     if(lift<1e-4||!(state.y>0)){outputTex[id.xy]=centre;return;}
     const float3 l=toLinear(centre.rgb);

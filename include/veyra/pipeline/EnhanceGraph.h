@@ -169,6 +169,11 @@ struct EnhanceGraphDesc {
     float topVignetteDepth=0.30f;
     float topVignetteRolloff=1.5f;
     float topVignetteAllowance=1.0f;
+    bool bottomVignette=false;
+    float bottomVignetteStrength=1.0f;
+    float bottomVignetteAllowance=1.0f;
+    float bottomVignetteDepth=0.30f;
+    float bottomVignetteRolloff=1.5f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -1057,8 +1062,10 @@ private:
     ComputePass topVigMeasurePass_,topVigSolvePass_,topVigApplyPass_;
     ComPtr<ID3D12Resource> topVigPartial_,topVigState_,topVigScratch_;
     unsigned topVigGroupsX_=0,topVigGroupsY_=0,topVigScratchRows_=0;
-    bool topVigReset_=true;
+    bool topVigReset_[2]={true,true};   // per edge: 0 top, 1 bottom
     bool topVignetteActive()const{return desc_.topVignette&&!desc_.stillImage;}
+    bool bottomVignetteActive()const{return desc_.bottomVignette&&!desc_.stillImage;}
+    bool edgeVignetteActive()const{return topVignetteActive()||bottomVignetteActive();}
     void applyTopVignette(ID3D12GraphicsCommandList*,unsigned parity);
     ComPtr<ID3D12Resource> fgDisable_[kGeneratedPoolSlots],fgDisableReadback_[kGeneratedPoolSlots],fgDisableInit_;
     std::array<const volatile uint8_t*,kGeneratedPoolSlots> fgDisableMapped_{};

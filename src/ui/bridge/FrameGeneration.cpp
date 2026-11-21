@@ -450,6 +450,61 @@ void QmlPlayerBridge::setTopVignetteAllowance(int percent) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "topVignetteAllowance not saved");
     emit settingsChanged();
 }
+// Bottom vignette compensation: on/off rebuilds the graph; the strength is live.
+bool QmlPlayerBridge::bottomVignette() const { return settings().bottomVignette; }
+void QmlPlayerBridge::setBottomVignette(bool value) {
+    auto s = settings();
+    if (s.bottomVignette == value) return;
+    s.bottomVignette = value;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受底部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("bottomVignette")] = value;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "bottom vignette not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::bottomVignetteStrength() const { return int(std::lround(settings().bottomVignetteStrength * 100.0f)); }
+void QmlPlayerBridge::setBottomVignetteStrength(int percent) {
+    percent = std::clamp(percent, 25, 600);
+    auto s = settings();
+    if (int(std::lround(s.bottomVignetteStrength * 100.0f)) == percent) return;
+    s.bottomVignetteStrength = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受底部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("bottomVignetteStrength")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "bottom vignette strength not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::bottomVignetteDepth() const { return int(std::lround(settings().bottomVignetteDepth * 100.0f)); }
+void QmlPlayerBridge::setBottomVignetteDepth(int percent) {
+    percent = std::clamp(percent, 10, 60);
+    auto s = settings();
+    if (int(std::lround(s.bottomVignetteDepth * 100.0f)) == percent) return;
+    s.bottomVignetteDepth = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受底部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("bottomVignetteDepth")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "bottomVignetteDepth not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::bottomVignetteRolloff() const { return int(std::lround(settings().bottomVignetteRolloff * 100.0f)); }
+void QmlPlayerBridge::setBottomVignetteRolloff(int percent) {
+    percent = std::clamp(percent, 50, 400);
+    auto s = settings();
+    if (int(std::lround(s.bottomVignetteRolloff * 100.0f)) == percent) return;
+    s.bottomVignetteRolloff = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受底部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("bottomVignetteRolloff")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "bottomVignetteRolloff not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::bottomVignetteAllowance() const { return int(std::lround(settings().bottomVignetteAllowance * 100.0f)); }
+void QmlPlayerBridge::setBottomVignetteAllowance(int percent) {
+    percent = std::clamp(percent, 0, 200);
+    auto s = settings();
+    if (int(std::lround(s.bottomVignetteAllowance * 100.0f)) == percent) return;
+    s.bottomVignetteAllowance = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受底部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("bottomVignetteAllowance")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "bottomVignetteAllowance not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

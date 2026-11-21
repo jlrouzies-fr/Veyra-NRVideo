@@ -24241,6 +24241,62 @@
    "en": "How much darker than the whole the top may be before it is compensated (100 = one stop): lower compensates more fully, 0 tries to match the rest; a sky is naturally darker at the top, so very low values can look flat",
    "ja": "上部が全体よりどれだけ暗くても補正しないか（100 = 1 段）：小さいほど補正が完全になり、0 は全体に合わせようとします。空はもともと上ほど暗いので、小さすぎると平板に見えることがあります",
    "ko": "위쪽이 전체보다 얼마나 어두워도 보정하지 않을지(100 = 한 스톱): 작을수록 더 완전히 보정하고 0은 전체와 맞추려 합니다. 하늘은 원래 위쪽이 더 어두우므로 너무 작으면 밋밋해 보일 수 있습니다"
+  },
+  {
+   "zh": "底部暗角补偿",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "底部暗角補償",
+   "en": "Bottom vignette compensation",
+   "ja": "下部周辺減光の補正",
+   "ko": "하단 비네팅 보정"
+  },
+  {
+   "zh": "画面底部明显比整体暗（暗角）时，在补帧之前提亮底部：底边最强，向上渐弱；与顶部分别测量。约一秒内缓慢变化，夜景和暗场景不动作，高光不受影响（底部的小地图等界面会一起变亮）。开关会重建画面管线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "畫面底部明顯比整體暗（暗角）時，在補幀之前提亮底部：底邊最強，向上漸弱；與頂部分別測量。約一秒內緩慢變化，夜景和暗場景不動作，高光不受影響（底部的小地圖等介面會一起變亮）。開關會重建畫面管線",
+   "en": "When the bottom of the picture is clearly darker than the whole (a vignette), brightens the bottom before frame generation: strongest at the bottom edge, fading upwards; measured apart from the top. It changes slowly, over about a second; night and dark scenes are left alone and highlights are not affected (a minimap or other HUD at the bottom is brightened with it). Switching it rebuilds the picture pipeline",
+   "ja": "画面下部が全体より明らかに暗い（周辺減光）とき、フレーム生成の前に下部を明るくします。下端が最も強く、上へ行くほど弱まり、上部とは別に測定します。約 1 秒かけてゆっくり変化し、夜景や暗いシーンでは動作せず、ハイライトには影響しません（下部のミニマップなどの UI も一緒に明るくなります）。切り替えると映像パイプラインを再構築します",
+   "ko": "화면 아래쪽이 전체보다 뚜렷하게 어두울 때(비네팅) 프레임 생성 전에 아래쪽을 밝게 합니다. 아래쪽 가장자리가 가장 강하고 위로 갈수록 약해지며, 위쪽과 따로 측정합니다. 약 1초에 걸쳐 천천히 변하며, 야경과 어두운 장면에서는 동작하지 않고 하이라이트에는 영향이 없습니다(아래쪽 미니맵 등 UI도 함께 밝아집니다). 켜고 끄면 화면 파이프라인을 다시 만듭니다"
+  },
+  {
+   "zh": "底边最多提亮多少（100 = 一档曝光，即两倍亮度）",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "底邊最多提亮多少（100 = 一檔曝光，即兩倍亮度）",
+   "en": "How much the bottom edge may be brightened at most (100 = one stop, twice as bright)",
+   "ja": "下端を最大どれだけ明るくするか（100 = 1 段、2 倍の明るさ）",
+   "ko": "아래쪽 가장자리를 최대 얼마나 밝게 할지(100 = 한 스톱, 두 배 밝기)"
+  },
+  {
+   "zh": "从底边往上作用到画面高度的多少（%）：越大，补偿延伸得越高",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "從底邊往上作用到畫面高度的多少（%）：越大，補償延伸得越高",
+   "en": "How far up from the bottom edge it acts, in percent of the picture height: higher reaches higher",
+   "ja": "下端から画面の高さの何 % まで作用するか：大きいほど上まで届きます",
+   "ko": "아래쪽 가장자리에서 화면 높이의 몇 %까지 작용할지: 클수록 더 위까지 닿습니다"
+  },
+  {
+   "zh": "从底边到作用深度的衰减方式：小于 100 缓和、延伸得远；大于 100 集中在底边附近（150 = 默认）",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "從底邊到作用深度的衰減方式：小於 100 緩和、延伸得遠；大於 100 集中在底邊附近（150 = 預設）",
+   "en": "How the lift fades from the bottom edge to the reach: below 100 gentle and far-reaching, above 100 concentrated near the bottom edge (150 = default)",
+   "ja": "下端から適用範囲までの減衰の仕方：100 未満は緩やかで遠くまで、100 超は下端付近に集中（150 = 既定）",
+   "ko": "아래쪽 가장자리에서 적용 깊이까지 줄어드는 방식: 100 미만은 완만하고 멀리, 100 초과는 아래쪽 가장자리 근처에 집중(150 = 기본값)"
+  },
+  {
+   "zh": "底部比整体暗多少以内不做补偿（100 = 一档）：越小补偿越完整，0 尽量与整体一致；过小可能显得发灰",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "底部比整體暗多少以內不做補償（100 = 一檔）：越小補償越完整，0 盡量與整體一致；過小可能顯得發灰",
+   "en": "How much darker than the whole the bottom may be before it is compensated (100 = one stop): lower compensates more fully, 0 tries to match the rest; very low values can look flat",
+   "ja": "下部が全体よりどれだけ暗くても補正しないか（100 = 1 段）：小さいほど補正が完全になり、0 は全体に合わせようとします。小さすぎると平板に見えることがあります",
+   "ko": "아래쪽이 전체보다 얼마나 어두워도 보정하지 않을지(100 = 한 스톱): 작을수록 더 완전히 보정하고 0은 전체와 맞추려 합니다. 너무 작으면 밋밋해 보일 수 있습니다"
+  },
+  {
+   "zh": "引擎未接受底部暗角补偿，原设置保留",
+   "src": "src/ui/bridge/FrameGeneration.cpp",
+   "zh-TW": "引擎未接受底部暗角補償，原設定保留",
+   "en": "The engine did not accept bottom vignette compensation; the previous setting is kept",
+   "ja": "エンジンが下部周辺減光の補正を受け付けなかったため、以前の設定を維持します",
+   "ko": "엔진이 하단 비네팅 보정을 받아들이지 않아 이전 설정을 유지합니다"
   }
  ]
 }
