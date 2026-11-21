@@ -3090,10 +3090,10 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
             rolloffMean/=float(bandCount);
         }
         {
-            // About 0.8 s to settle at 30 real frames/s; full effect from the edge's scene level
+            // Up: about 0.8 s to settle at 30 real frames/s; down: about 0.1 s. Full effect from the edge's scene level
             // (geometric mean of the reference rows), off below a quarter of it.
             const float c[12]={uintBits(topVigGroupsX_),uintBits(topVigGroupsY_),edges[side].strength,edges[side].allowance,0.04f,
-                uintBits(topVigReset_[side]?1u:0u),edges[side].minNits*0.25f,edges[side].minNits,uintBits(side),rolloffMean,0,0};
+                uintBits(topVigReset_[side]?1u:0u),edges[side].minNits*0.25f,edges[side].minNits,uintBits(side),rolloffMean,0.3f,0};
             const auto heap=topVigSolvePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
             topVigSolvePass_.bind(list,c,heap,heap+topVigSolvePass_.increment);
             list->Dispatch(1,1,1);

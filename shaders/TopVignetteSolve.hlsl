@@ -9,12 +9,13 @@ cbuffer Constants : register(b0) {
     uint groupsX, groupsY;
     float maxStops;
     float allowanceStops;
-    float ease;          // share of the way to the target per real frame
+    float ease;          // share of the way to a higher target per real frame
     uint reset;
     float darkNits, fullNits;   // scene geometric mean: off below darkNits, full above fullNits
     uint side;                  // state texel: 0 top, 1 bottom
     float rolloffMean;          // mean of the roll-off weight over the band rows (0..1]
-    uint pad1, pad2;
+    float easeDown;             // share of the way to a lower target per real frame
+    uint pad2;
 };
 
 groupshared float4 sums[1024];
@@ -44,7 +45,9 @@ void main(uint index : SV_GroupIndex) {
     // as a whole reaches the reference (less the allowance).
     const float target=clamp((deficit-allowanceStops)/max(rolloffMean,0.05),0,maxStops)*active;
     float4 state=reset?float4(target,sceneNits,0,0):stateTex[uint2(side,0)];
-    state.x=lerp(state.x,target,reset?1.0:ease);
-    state.y=lerp(state.y,sceneNits,reset?1.0:ease);
+    // Build up slowly, let go fast: stepping into a bright scene must not keep a dark
+    // scene's lift for seconds.
+    state.x=lerp(state.x,target,reset?1.0:target<state.x?easeDown:ease);
+    state.y=lerp(state.y,sceneNits,reset?1.0:sceneNits>state.y?easeDown:ease);
     stateTex[uint2(side,0)]=state;
 }
