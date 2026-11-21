@@ -168,6 +168,7 @@ struct EnhanceGraphDesc {
     float topVignetteStrength=1.0f;
     float topVignetteDepth=0.30f;
     float topVignetteRolloff=1.5f;
+    float topVignetteAllowance=1.0f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;

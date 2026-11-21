@@ -1966,9 +1966,23 @@ VPage {
                                     implicitWidth: 110
                                     valueFromModel: true
                                     resettable: true; defaultValue: 100
-                                    from: 25; to: 400; stepSize: 5
+                                    from: 25; to: 600; stepSize: 5
                                     value: veyra.topVignetteStrength
                                     onMoved: value => veyra.topVignetteStrength = Math.round(value)
+                                }
+                            }
+                            VRow {
+                                label: qsTr("容许暗度")
+                                visible: veyra.topVignette
+                                hint: qsTr("顶部比整体暗多少以内不做补偿（100 = 一档）：越小补偿越完整，0 尽量与整体一致；天空本来就是顶部更暗，过小可能显得发灰")
+                                VSlider {
+                                    objectName: "list-top-vignette-allowance"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 100
+                                    from: 0; to: 200; stepSize: 5
+                                    value: veyra.topVignetteAllowance
+                                    onMoved: value => veyra.topVignetteAllowance = Math.round(value)
                                 }
                             }
                             VRow {

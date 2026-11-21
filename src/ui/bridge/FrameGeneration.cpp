@@ -408,7 +408,7 @@ void QmlPlayerBridge::setTopVignette(bool value) {
 }
 int QmlPlayerBridge::topVignetteStrength() const { return int(std::lround(settings().topVignetteStrength * 100.0f)); }
 void QmlPlayerBridge::setTopVignetteStrength(int percent) {
-    percent = std::clamp(percent, 25, 400);
+    percent = std::clamp(percent, 25, 600);
     auto s = settings();
     if (int(std::lround(s.topVignetteStrength * 100.0f)) == percent) return;
     s.topVignetteStrength = float(percent) / 100.0f;
@@ -437,6 +437,17 @@ void QmlPlayerBridge::setTopVignetteRolloff(int percent) {
     if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
     impl_->prefs[QStringLiteral("topVignetteRolloff")] = percent;
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "topVignetteRolloff not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::topVignetteAllowance() const { return int(std::lround(settings().topVignetteAllowance * 100.0f)); }
+void QmlPlayerBridge::setTopVignetteAllowance(int percent) {
+    percent = std::clamp(percent, 0, 200);
+    auto s = settings();
+    if (int(std::lround(s.topVignetteAllowance * 100.0f)) == percent) return;
+    s.topVignetteAllowance = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("topVignetteAllowance")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "topVignetteAllowance not saved");
     emit settingsChanged();
 }
 bool QmlPlayerBridge::dlssgLiteAvailable() const {

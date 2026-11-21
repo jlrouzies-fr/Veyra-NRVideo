@@ -24225,6 +24225,22 @@
    "en": "How the lift fades from the top edge to the reach: below 100 gentle and far-reaching, above 100 concentrated near the top edge (150 = default)",
    "ja": "上端から適用範囲までの減衰の仕方：100 未満は緩やかで遠くまで、100 超は上端付近に集中（150 = 既定）",
    "ko": "위쪽 가장자리에서 적용 깊이까지 줄어드는 방식: 100 미만은 완만하고 멀리, 100 초과는 위쪽 가장자리 근처에 집중(150 = 기본값)"
+  },
+  {
+   "zh": "容许暗度",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "容許暗度",
+   "en": "Allowance",
+   "ja": "許容する暗さ",
+   "ko": "허용 어두움"
+  },
+  {
+   "zh": "顶部比整体暗多少以内不做补偿（100 = 一档）：越小补偿越完整，0 尽量与整体一致；天空本来就是顶部更暗，过小可能显得发灰",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "頂部比整體暗多少以內不做補償（100 = 一檔）：越小補償越完整，0 盡量與整體一致；天空本來就是頂部更暗，過小可能顯得發灰",
+   "en": "How much darker than the whole the top may be before it is compensated (100 = one stop): lower compensates more fully, 0 tries to match the rest; a sky is naturally darker at the top, so very low values can look flat",
+   "ja": "上部が全体よりどれだけ暗くても補正しないか（100 = 1 段）：小さいほど補正が完全になり、0 は全体に合わせようとします。空はもともと上ほど暗いので、小さすぎると平板に見えることがあります",
+   "ko": "위쪽이 전체보다 얼마나 어두워도 보정하지 않을지(100 = 한 스톱): 작을수록 더 완전히 보정하고 0은 전체와 맞추려 합니다. 하늘은 원래 위쪽이 더 어두우므로 너무 작으면 밋밋해 보일 수 있습니다"
   }
  ]
 }

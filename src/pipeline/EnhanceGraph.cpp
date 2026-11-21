@@ -1105,7 +1105,7 @@ bool EnhanceGraph::createResources()
         topVigScratch_=makeTexture(context_.device(),workW_,topVigScratchRows_,outputFormat(),true);
         if(!topVigPartial_||!topVigState_||!topVigScratch_)return false;
         topVigReset_=true;
-        veyra::log::info("top-vignette",std::format("enabled maxStops={:.2f} depth={:.2f} rolloff={:.2f} groups={}x{}",desc_.topVignetteStrength,desc_.topVignetteDepth,desc_.topVignetteRolloff,topVigGroupsX_,topVigGroupsY_));
+        veyra::log::info("top-vignette",std::format("enabled maxStops={:.2f} allowance={:.2f} depth={:.2f} rolloff={:.2f} groups={}x{}",desc_.topVignetteStrength,desc_.topVignetteAllowance,desc_.topVignetteDepth,desc_.topVignetteRolloff,topVigGroupsX_,topVigGroupsY_));
     }
     if(detailMatchActive()){
         detailGroupsX_=(workW_+15)/16;detailGroupsY_=(workH_+15)/16;
@@ -3073,9 +3073,9 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
     tracker_.transition(list,partial,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     tracker_.transition(list,state,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     {
-        // Allowance 1 stop; about 0.8 s to settle at 30 real frames/s; off below a 5 nit scene
+        // About 0.8 s to settle at 30 real frames/s; off below a 5 nit scene
         // geometric mean, full from 20 nits (night and dark interiors stay untouched).
-        const float c[8]={uintBits(topVigGroupsX_),uintBits(topVigGroupsY_),desc_.topVignetteStrength,1.0f,0.04f,
+        const float c[8]={uintBits(topVigGroupsX_),uintBits(topVigGroupsY_),desc_.topVignetteStrength,desc_.topVignetteAllowance,0.04f,
             uintBits(topVigReset_?1u:0u),5.0f,20.0f};
         const auto heap=topVigSolvePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
         topVigSolvePass_.bind(list,c,heap,heap+topVigSolvePass_.increment);
@@ -5091,6 +5091,7 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.topVignetteStrength=s.topVignetteStrength;
     desc_.topVignetteDepth=s.topVignetteDepth;
     desc_.topVignetteRolloff=s.topVignetteRolloff;
+    desc_.topVignetteAllowance=s.topVignetteAllowance;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
