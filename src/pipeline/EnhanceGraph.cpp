@@ -3073,7 +3073,7 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
         tracker_.transition(list,frame,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         tracker_.transition(list,partial,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         {
-            const float c[8]={uintBits(workW_),uintBits(workH_),mode,bandRows,sdrWhiteNits,float(side),0,0};
+            const float c[8]={uintBits(workW_),uintBits(workH_),mode,bandRows,sdrWhiteNits,float(side),float(depthRows[side]),0};
             const auto heap=topVigMeasurePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
             topVigMeasurePass_.bind(list,c,heap+parity*2*topVigMeasurePass_.increment,heap+(parity*2+1)*topVigMeasurePass_.increment);
             list->Dispatch(topVigGroupsX_,topVigGroupsY_,1);
@@ -3081,12 +3081,19 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
         tracker_.uavBarrier(list,partial);
         tracker_.transition(list,partial,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         tracker_.transition(list,state,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        // Mean roll-off weight over the measured band, as TopVignetteApply weights its rows.
+        float rolloffMean=0;
+        {
+            const unsigned bandCount=std::max(1u,unsigned(bandRows));
+            for(unsigned r=0;r<bandCount;++r)
+                rolloffMean+=std::pow(std::clamp(1.0f-(float(r)+0.5f)/float(depthRows[side]),0.0f,1.0f),edges[side].rolloff);
+            rolloffMean/=float(bandCount);
+        }
         {
             // About 0.8 s to settle at 30 real frames/s; full effect from the edge's scene level
-            // (geometric mean), off below a quarter of it. The bottom compares with the rest of
-            // the frame: its vignette shows in darker scenes, where the band weighs on the mean.
+            // (geometric mean of the reference rows), off below a quarter of it.
             const float c[12]={uintBits(topVigGroupsX_),uintBits(topVigGroupsY_),edges[side].strength,edges[side].allowance,0.04f,
-                uintBits(topVigReset_[side]?1u:0u),edges[side].minNits*0.25f,edges[side].minNits,uintBits(side),uintBits(side==1?1u:0u),0,0};
+                uintBits(topVigReset_[side]?1u:0u),edges[side].minNits*0.25f,edges[side].minNits,uintBits(side),rolloffMean,0,0};
             const auto heap=topVigSolvePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
             topVigSolvePass_.bind(list,c,heap,heap+topVigSolvePass_.increment);
             list->Dispatch(1,1,1);

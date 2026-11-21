@@ -13,7 +13,7 @@ cbuffer Constants : register(b0) {
     uint reset;
     float darkNits, fullNits;   // scene geometric mean: off below darkNits, full above fullNits
     uint side;                  // state texel: 0 top, 1 bottom
-    uint excludeBand;           // 1: compare with the rest of the frame, the band left out
+    float rolloffMean;          // mean of the roll-off weight over the band rows (0..1]
     uint pad1, pad2;
 };
 
@@ -34,13 +34,15 @@ void main(uint index : SV_GroupIndex) {
     const float4 s=sums[0];
     if(s.y<1||s.w<1)return;
     const float top=s.x/s.y;
-    // The reference: the whole frame, or only what lies outside the band (a dark band then no
-    // longer drags its own reference down).
-    const float all=excludeBand&&s.w-s.y>=1?(s.z-s.x)/(s.w-s.y):s.z/s.w;
+    // The reference: the rows beyond the corrected reach, so the darkened zone never drags its
+    // own reference down.
+    const float all=s.z/s.w;
     const float sceneNits=exp(all);
     const float deficit=(all-top)/log(2.0);
     const float active=saturate((sceneNits-darkNits)/max(fullNits-darkNits,1e-3));
-    const float target=clamp(deficit-allowanceStops,0,maxStops)*active;
+    // The band gets the edge lift times the roll-off weight; divide by its mean so the band
+    // as a whole reaches the reference (less the allowance).
+    const float target=clamp((deficit-allowanceStops)/max(rolloffMean,0.05),0,maxStops)*active;
     float4 state=reset?float4(target,sceneNits,0,0):stateTex[uint2(side,0)];
     state.x=lerp(state.x,target,reset?1.0:ease);
     state.y=lerp(state.y,sceneNits,reset?1.0:ease);

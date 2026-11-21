@@ -1,7 +1,7 @@
 // Edge vignette compensation, step 1 of 3: log luminance of the edge band (top, or bottom with
-// fromBottom) and of the whole frame.
-// One sample per 4x4 pixels; each 16x16 group writes (sum log top, top count, sum log all,
-// all count) for its 64x64 pixel block.
+// fromBottom) and of the reference: the rows outside the corrected reach.
+// One sample per 4x4 pixels; each 16x16 group writes (sum log band, band count, sum log
+// reference, reference count) for its 64x64 pixel block.
 #include "HdrColor.hlsli"
 Texture2D<float4> frameTex : register(t0);
 RWTexture2D<float4> partialTex : register(u0);   // groupsX x groupsY
@@ -11,7 +11,8 @@ cbuffer Constants : register(b0) {
     float bandRows;     // rows counted as the edge band
     float sdrWhiteNits;
     float fromBottom;   // 1: the band is counted from the bottom edge
-    float pad1, pad2;
+    float reachRows;    // rows the correction covers; the reference lies beyond them
+    float pad2;
 };
 
 float nits(float3 encoded) {
@@ -30,9 +31,9 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint index :
     const uint2 pixel=id.xy*4+2;
     if(pixel.x<width&&pixel.y<height){
         const float l=log(max(nits(frameTex[pixel].rgb),0.1));
-        v.zw=float2(l,1);
         const float row=fromBottom>0.5?float(height-1-pixel.y):float(pixel.y);
         if(row<bandRows)v.xy=float2(l,1);
+        if(row>=reachRows)v.zw=float2(l,1);
     }
     sums[index]=v;
     GroupMemoryBarrierWithGroupSync();
