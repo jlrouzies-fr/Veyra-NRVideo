@@ -1,6 +1,8 @@
 // Edge vignette compensation, step 3 of 3: brighten the rows of one edge by its eased lift,
-// strongest at the edge and fading as (1 - y/depth)^rolloff to nothing at `depth` of the height. Bright pixels (HUD, sun, clouds
-// far above the scene level) are left alone. Only the top `depth` rows are dispatched.
+// strongest at the edge and fading as (1 - distance/depth)^rolloff to nothing at `depth` of the
+// height. The lifted luminance rolls off between 4x and 16x the scene level and never drops
+// below the original, so the HUD, the sun and bright clouds stay as they are and brightness
+// order is kept at any lift. Only the `depth` rows of the edge are dispatched.
 #include "HdrColor.hlsli"
 Texture2D<float4> frameTex : register(t0);
 Texture2D<float4> stateTex : register(t1);
@@ -41,8 +43,12 @@ void main(uint3 id : SV_DispatchThreadID) {
     if(lift<1e-4||!(state.y>0)){outputTex[id.xy]=centre;return;}
     const float3 l=toLinear(centre.rgb);
     const float y=dot(l,float3(0.2126,0.7152,0.0722));
-    const float h=saturate((y/state.y-4.0)/12.0);
-    const float keep=h*h*(3.0-2.0*h);
-    const float gain=lerp(exp2(lift),1.0,keep);
+    if(!(y>1e-6)){outputTex[id.xy]=centre;return;}
+    // Monotonic in y: full gain up to the knee, a shoulder toward the ceiling above it, and
+    // never darker than the original.
+    const float knee=4.0*state.y, ceiling=16.0*state.y;
+    float lifted=y*exp2(lift);
+    if(lifted>knee){const float over=lifted-knee;lifted=knee+over/(1.0+over/(ceiling-knee));}
+    const float gain=max(lifted,y)/y;
     outputTex[id.xy]=float4(fromLinear(l*gain),centre.a);
 }

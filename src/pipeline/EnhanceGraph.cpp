@@ -3073,7 +3073,7 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
         tracker_.transition(list,frame,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         tracker_.transition(list,partial,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         {
-            const float c[8]={uintBits(workW_),uintBits(workH_),mode,bandRows,sdrWhiteNits,float(side),float(depthRows[side]),0};
+            const float c[8]={uintBits(workW_),uintBits(workH_),mode,bandRows,sdrWhiteNits,float(side),float(workH_)*0.25f,float(workH_)*0.75f};
             const auto heap=topVigMeasurePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
             topVigMeasurePass_.bind(list,c,heap+parity*2*topVigMeasurePass_.increment,heap+(parity*2+1)*topVigMeasurePass_.increment);
             list->Dispatch(topVigGroupsX_,topVigGroupsY_,1);
@@ -3091,8 +3091,8 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
         }
         {
             // About 0.8 s to settle at 30 real frames/s (fast only after a scene change, see the
-            // shader). Full effect from the edge's scene level
-            // (geometric mean of the reference rows), off below a quarter of it.
+            // shader). Full effect from the edge's scene level (median column level of the
+            // central reference rows), off below a quarter of it.
             const float c[12]={uintBits(topVigGroupsX_),uintBits(topVigGroupsY_),edges[side].strength,edges[side].allowance,0.04f,
                 uintBits(topVigReset_[side]?1u:0u),edges[side].minNits*0.25f,edges[side].minNits,uintBits(side),rolloffMean,0.3f,0};
             const auto heap=topVigSolvePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;

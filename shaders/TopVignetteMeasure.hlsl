@@ -1,5 +1,6 @@
 // Edge vignette compensation, step 1 of 3: log luminance of the edge band (top, or bottom with
-// fromBottom) and of the reference: the rows outside the corrected reach.
+// fromBottom) and of the reference: the central rows [refLo, refHi), the same for both edges
+// and whatever the reach.
 // One sample per 4x4 pixels; each 16x16 group writes (sum log band, band count, sum log
 // reference, reference count) for its 64x64 pixel block.
 #include "HdrColor.hlsli"
@@ -11,8 +12,8 @@ cbuffer Constants : register(b0) {
     float bandRows;     // rows counted as the edge band
     float sdrWhiteNits;
     float fromBottom;   // 1: the band is counted from the bottom edge
-    float reachRows;    // rows the correction covers; the reference lies beyond them
-    float pad2;
+    float refLo;        // reference rows, counted from the top of the frame
+    float refHi;
 };
 
 float nits(float3 encoded) {
@@ -33,7 +34,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint index :
         const float l=log(max(nits(frameTex[pixel].rgb),0.1));
         const float row=fromBottom>0.5?float(height-1-pixel.y):float(pixel.y);
         if(row<bandRows)v.xy=float2(l,1);
-        if(row>=reachRows)v.zw=float2(l,1);
+        if(float(pixel.y)>=refLo&&float(pixel.y)<refHi)v.zw=float2(l,1);
     }
     sums[index]=v;
     GroupMemoryBarrierWithGroupSync();
