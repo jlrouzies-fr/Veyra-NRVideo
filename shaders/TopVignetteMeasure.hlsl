@@ -29,7 +29,7 @@ void main(uint3 id : SV_DispatchThreadID, uint3 group : SV_GroupID, uint index :
     float4 v=0;
     const uint2 pixel=id.xy*4+2;
     if(pixel.x<width&&pixel.y<height){
-        const float l=log(max(nits(frameTex[pixel].rgb),0.5));
+        const float l=log(max(nits(frameTex[pixel].rgb),0.1));
         v.zw=float2(l,1);
         const float row=fromBottom>0.5?float(height-1-pixel.y):float(pixel.y);
         if(row<bandRows)v.xy=float2(l,1);

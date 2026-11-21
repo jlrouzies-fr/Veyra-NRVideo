@@ -493,6 +493,7 @@ class QmlPlayerBridge : public QObject {
     // Depth in percent of the height, roll-off exponent in percent (150 = 1.5).
     Q_PROPERTY(int topVignetteDepth READ topVignetteDepth WRITE setTopVignetteDepth NOTIFY settingsChanged)
     Q_PROPERTY(int topVignetteRolloff READ topVignetteRolloff WRITE setTopVignetteRolloff NOTIFY settingsChanged)
+    Q_PROPERTY(int topVignetteMinNits READ topVignetteMinNits WRITE setTopVignetteMinNits NOTIFY settingsChanged)
     Q_PROPERTY(int topVignetteAllowance READ topVignetteAllowance WRITE setTopVignetteAllowance NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
@@ -594,6 +595,7 @@ class QmlPlayerBridge : public QObject {
     // Depth in percent of the height, roll-off exponent in percent (150 = 1.5).
     Q_PROPERTY(int bottomVignetteDepth READ bottomVignetteDepth WRITE setBottomVignetteDepth NOTIFY settingsChanged)
     Q_PROPERTY(int bottomVignetteRolloff READ bottomVignetteRolloff WRITE setBottomVignetteRolloff NOTIFY settingsChanged)
+    Q_PROPERTY(int bottomVignetteMinNits READ bottomVignetteMinNits WRITE setBottomVignetteMinNits NOTIFY settingsChanged)
     Q_PROPERTY(int bottomVignetteAllowance READ bottomVignetteAllowance WRITE setBottomVignetteAllowance NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
@@ -1322,6 +1324,8 @@ public:
     void setTopVignetteDepth(int percent);
     int topVignetteRolloff() const;
     void setTopVignetteRolloff(int percent);
+    int topVignetteMinNits() const;
+    void setTopVignetteMinNits(int nits);
     int topVignetteAllowance() const;
     void setTopVignetteAllowance(int percent);
     bool bottomVignette() const;
@@ -1332,6 +1336,8 @@ public:
     void setBottomVignetteDepth(int percent);
     int bottomVignetteRolloff() const;
     void setBottomVignetteRolloff(int percent);
+    int bottomVignetteMinNits() const;
+    void setBottomVignetteMinNits(int nits);
     int bottomVignetteAllowance() const;
     void setBottomVignetteAllowance(int percent);
     bool dlssgLiteAvailable() const;

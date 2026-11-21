@@ -538,12 +538,14 @@ struct EnhancementSettings {
     float topVignetteAllowance=1.0f; // stops the top may be darker untouched, 0..2
     float topVignetteDepth=0.30f;    // share of the height, 0.10..0.60
     float topVignetteRolloff=1.5f;   // exponent, 0.5 (gentle, reaches far) .. 4 (hugs the edge)
+    float topVignetteMinNits=20.0f;  // scene level (geometric mean) of full effect; off below a quarter of it, 1..40
     // The same for the bottom edge, measured and eased on its own.
     bool bottomVignette=false;
     float bottomVignetteStrength=1.0f;
     float bottomVignetteAllowance=1.0f;
     float bottomVignetteDepth=0.30f;
     float bottomVignetteRolloff=1.5f;
+    float bottomVignetteMinNits=3.0f; // lower: the bottom vignette shows in evening and night scenes
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;
@@ -731,6 +733,8 @@ struct EnhancementSettings {
         if(!(bottomVignetteAllowance>=0.0f&&bottomVignetteAllowance<=2.0f))return "invalid bottom vignette allowance";
         if(!(bottomVignetteDepth>=0.10f&&bottomVignetteDepth<=0.60f))return "invalid bottom vignette depth";
         if(!(bottomVignetteRolloff>=0.5f&&bottomVignetteRolloff<=4.0f))return "invalid bottom vignette rolloff";
+        if(!(topVignetteMinNits>=1.0f&&topVignetteMinNits<=40.0f))return "invalid top vignette scene level";
+        if(!(bottomVignetteMinNits>=1.0f&&bottomVignetteMinNits<=40.0f))return "invalid bottom vignette scene level";
         // The XeSS provider reports its own generated-frame ceiling at session
         // start; the engine clamps/rejects above it, so validation only guards
         // the absolute API range here.

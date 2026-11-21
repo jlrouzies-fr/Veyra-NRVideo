@@ -505,6 +505,28 @@ void QmlPlayerBridge::setBottomVignetteAllowance(int percent) {
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "bottomVignetteAllowance not saved");
     emit settingsChanged();
 }
+int QmlPlayerBridge::topVignetteMinNits() const { return int(std::lround(settings().topVignetteMinNits)); }
+void QmlPlayerBridge::setTopVignetteMinNits(int nits) {
+    nits = std::clamp(nits, 1, 40);
+    auto s = settings();
+    if (int(std::lround(s.topVignetteMinNits)) == nits) return;
+    s.topVignetteMinNits = float(nits);
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("topVignetteMinNits")] = nits;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "topVignetteMinNits not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::bottomVignetteMinNits() const { return int(std::lround(settings().bottomVignetteMinNits)); }
+void QmlPlayerBridge::setBottomVignetteMinNits(int nits) {
+    nits = std::clamp(nits, 1, 40);
+    auto s = settings();
+    if (int(std::lround(s.bottomVignetteMinNits)) == nits) return;
+    s.bottomVignetteMinNits = float(nits);
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受底部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("bottomVignetteMinNits")] = nits;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "bottomVignetteMinNits not saved");
+    emit settingsChanged();
+}
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
     static const bool present = ngx::dlssgLiteRuntimePresent(runtime::localRuntimeDirectory());
     return present;

@@ -367,6 +367,10 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             const float depth = float(std::clamp(p.value(QStringLiteral("topVignetteDepth")).toInt(), 10, 60)) / 100.0f;
             if (s.topVignetteDepth != depth) { s.topVignetteDepth = depth; changed = true; }
         }
+        if (p.contains(QStringLiteral("topVignetteMinNits"))) {
+            const float level = float(std::clamp(p.value(QStringLiteral("topVignetteMinNits")).toInt(), 1, 40));
+            if (s.topVignetteMinNits != level) { s.topVignetteMinNits = level; changed = true; }
+        }
         if (p.contains(QStringLiteral("topVignetteRolloff"))) {
             const float rolloff = float(std::clamp(p.value(QStringLiteral("topVignetteRolloff")).toInt(), 50, 400)) / 100.0f;
             if (s.topVignetteRolloff != rolloff) { s.topVignetteRolloff = rolloff; changed = true; }
@@ -386,6 +390,10 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
         if (p.contains(QStringLiteral("bottomVignetteDepth"))) {
             const float depth = float(std::clamp(p.value(QStringLiteral("bottomVignetteDepth")).toInt(), 10, 60)) / 100.0f;
             if (s.bottomVignetteDepth != depth) { s.bottomVignetteDepth = depth; changed = true; }
+        }
+        if (p.contains(QStringLiteral("bottomVignetteMinNits"))) {
+            const float level = float(std::clamp(p.value(QStringLiteral("bottomVignetteMinNits")).toInt(), 1, 40));
+            if (s.bottomVignetteMinNits != level) { s.bottomVignetteMinNits = level; changed = true; }
         }
         if (p.contains(QStringLiteral("bottomVignetteRolloff"))) {
             const float rolloff = float(std::clamp(p.value(QStringLiteral("bottomVignetteRolloff")).toInt(), 50, 400)) / 100.0f;

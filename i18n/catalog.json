@@ -24297,6 +24297,22 @@
    "en": "The engine did not accept bottom vignette compensation; the previous setting is kept",
    "ja": "エンジンが下部周辺減光の補正を受け付けなかったため、以前の設定を維持します",
    "ko": "엔진이 하단 비네팅 보정을 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "最低场景亮度",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "最低場景亮度",
+   "en": "Scene level",
+   "ja": "シーンの明るさ",
+   "ko": "장면 밝기"
+  },
+  {
+   "zh": "整个画面（几何平均）达到这一亮度（尼特）时完全生效，低于其四分之一时不动作：越小，越能在傍晚和夜间场景中补偿",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "整個畫面（幾何平均）達到這一亮度（尼特）時完全生效，低於其四分之一時不動作：越小，越能在傍晚和夜間場景中補償",
+   "en": "Scene brightness (geometric mean, in nits) at which it works fully; below a quarter of it, it does nothing. Lower values let it compensate in evening and night scenes",
+   "ja": "画面全体（幾何平均）がこの明るさ（nit）に達すると完全に効き、その 4 分の 1 未満では動作しません。小さいほど夕方や夜のシーンでも補正します",
+   "ko": "화면 전체(기하 평균)가 이 밝기(니트)에 이르면 완전히 작동하고, 그 4분의 1 미만에서는 동작하지 않습니다. 작을수록 저녁과 밤 장면에서도 보정합니다"
   }
  ]
 }

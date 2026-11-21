@@ -2014,6 +2014,20 @@ VPage {
                                 }
                             }
                             VRow {
+                                label: qsTr("最低场景亮度")
+                                visible: veyra.topVignette
+                                hint: qsTr("整个画面（几何平均）达到这一亮度（尼特）时完全生效，低于其四分之一时不动作：越小，越能在傍晚和夜间场景中补偿")
+                                VSlider {
+                                    objectName: "list-top-vignette-min-nits"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 20
+                                    from: 1; to: 40; stepSize: 1
+                                    value: veyra.topVignetteMinNits
+                                    onMoved: value => veyra.topVignetteMinNits = Math.round(value)
+                                }
+                            }
+                            VRow {
                                 label: qsTr("底部暗角补偿")
                                 hint: qsTr("画面底部明显比整体暗（暗角）时，在补帧之前提亮底部：底边最强，向上渐弱；与顶部分别测量。约一秒内缓慢变化，夜景和暗场景不动作，高光不受影响（底部的小地图等界面会一起变亮）。开关会重建画面管线")
                                 VSwitch { objectName: "list-bottom-vignette"; checked: veyra.bottomVignette; onToggled: checked => veyra.bottomVignette = checked }
@@ -2072,6 +2086,20 @@ VPage {
                                     from: 50; to: 400; stepSize: 10
                                     value: veyra.bottomVignetteRolloff
                                     onMoved: value => veyra.bottomVignetteRolloff = Math.round(value)
+                                }
+                            }
+                            VRow {
+                                label: qsTr("最低场景亮度")
+                                visible: veyra.bottomVignette
+                                hint: qsTr("整个画面（几何平均）达到这一亮度（尼特）时完全生效，低于其四分之一时不动作：越小，越能在傍晚和夜间场景中补偿")
+                                VSlider {
+                                    objectName: "list-bottom-vignette-min-nits"
+                                    implicitWidth: 110
+                                    valueFromModel: true
+                                    resettable: true; defaultValue: 3
+                                    from: 1; to: 40; stepSize: 1
+                                    value: veyra.bottomVignetteMinNits
+                                    onMoved: value => veyra.bottomVignetteMinNits = Math.round(value)
                                 }
                             }
                             VRow {

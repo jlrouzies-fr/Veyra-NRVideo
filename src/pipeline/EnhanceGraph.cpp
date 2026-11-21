@@ -3060,10 +3060,10 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
     auto* partial=topVigPartial_.Get();auto* state=topVigState_.Get();auto* scratch=topVigScratch_.Get();
     const float mode=hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f;
     constexpr float sdrWhiteNits=100.0f;
-    struct Edge{bool on;float strength,allowance,depth,rolloff;};
+    struct Edge{bool on;float strength,allowance,depth,rolloff,minNits;};
     const Edge edges[2]={
-        {topVignetteActive(),desc_.topVignetteStrength,desc_.topVignetteAllowance,desc_.topVignetteDepth,desc_.topVignetteRolloff},
-        {bottomVignetteActive(),desc_.bottomVignetteStrength,desc_.bottomVignetteAllowance,desc_.bottomVignetteDepth,desc_.bottomVignetteRolloff}};
+        {topVignetteActive(),desc_.topVignetteStrength,desc_.topVignetteAllowance,desc_.topVignetteDepth,desc_.topVignetteRolloff,desc_.topVignetteMinNits},
+        {bottomVignetteActive(),desc_.bottomVignetteStrength,desc_.bottomVignetteAllowance,desc_.bottomVignetteDepth,desc_.bottomVignetteRolloff,desc_.bottomVignetteMinNits}};
     unsigned depthRows[2]={};
     for(unsigned side=0;side<2;++side){
         if(!edges[side].on)continue;
@@ -3082,10 +3082,11 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
         tracker_.transition(list,partial,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         tracker_.transition(list,state,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         {
-            // About 0.8 s to settle at 30 real frames/s; off below a 5 nit scene geometric
-            // mean, full from 20 nits (night and dark interiors stay untouched).
+            // About 0.8 s to settle at 30 real frames/s; full effect from the edge's scene level
+            // (geometric mean), off below a quarter of it. The bottom compares with the rest of
+            // the frame: its vignette shows in darker scenes, where the band weighs on the mean.
             const float c[12]={uintBits(topVigGroupsX_),uintBits(topVigGroupsY_),edges[side].strength,edges[side].allowance,0.04f,
-                uintBits(topVigReset_[side]?1u:0u),5.0f,20.0f,uintBits(side),0,0,0};
+                uintBits(topVigReset_[side]?1u:0u),edges[side].minNits*0.25f,edges[side].minNits,uintBits(side),uintBits(side==1?1u:0u),0,0};
             const auto heap=topVigSolvePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
             topVigSolvePass_.bind(list,c,heap,heap+topVigSolvePass_.increment);
             list->Dispatch(1,1,1);
@@ -5112,6 +5113,8 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.bottomVignetteAllowance=s.bottomVignetteAllowance;
     desc_.bottomVignetteDepth=s.bottomVignetteDepth;
     desc_.bottomVignetteRolloff=s.bottomVignetteRolloff;
+    desc_.topVignetteMinNits=s.topVignetteMinNits;
+    desc_.bottomVignetteMinNits=s.bottomVignetteMinNits;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){
