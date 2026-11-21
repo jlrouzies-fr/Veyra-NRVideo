@@ -356,11 +356,11 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             if (s.topVignette != on) { s.topVignette = on; changed = true; }
         }
         if (p.contains(QStringLiteral("topVignetteStrength"))) {
-            const float stops = float(std::clamp(p.value(QStringLiteral("topVignetteStrength")).toInt(), 25, 600)) / 100.0f;
+            const float stops = float(std::clamp(p.value(QStringLiteral("topVignetteStrength")).toInt(), 25, 1000)) / 100.0f;
             if (s.topVignetteStrength != stops) { s.topVignetteStrength = stops; changed = true; }
         }
         if (p.contains(QStringLiteral("topVignetteAllowance"))) {
-            const float allowance = float(std::clamp(p.value(QStringLiteral("topVignetteAllowance")).toInt(), 0, 200)) / 100.0f;
+            const float allowance = float(std::clamp(p.value(QStringLiteral("topVignetteAllowance")).toInt(), -200, 200)) / 100.0f;
             if (s.topVignetteAllowance != allowance) { s.topVignetteAllowance = allowance; changed = true; }
         }
         if (p.contains(QStringLiteral("topVignetteDepth"))) {
@@ -380,11 +380,11 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             if (s.bottomVignette != on) { s.bottomVignette = on; changed = true; }
         }
         if (p.contains(QStringLiteral("bottomVignetteStrength"))) {
-            const float stops = float(std::clamp(p.value(QStringLiteral("bottomVignetteStrength")).toInt(), 25, 600)) / 100.0f;
+            const float stops = float(std::clamp(p.value(QStringLiteral("bottomVignetteStrength")).toInt(), 25, 1000)) / 100.0f;
             if (s.bottomVignetteStrength != stops) { s.bottomVignetteStrength = stops; changed = true; }
         }
         if (p.contains(QStringLiteral("bottomVignetteAllowance"))) {
-            const float allowance = float(std::clamp(p.value(QStringLiteral("bottomVignetteAllowance")).toInt(), 0, 200)) / 100.0f;
+            const float allowance = float(std::clamp(p.value(QStringLiteral("bottomVignetteAllowance")).toInt(), -200, 200)) / 100.0f;
             if (s.bottomVignetteAllowance != allowance) { s.bottomVignetteAllowance = allowance; changed = true; }
         }
         if (p.contains(QStringLiteral("bottomVignetteDepth"))) {

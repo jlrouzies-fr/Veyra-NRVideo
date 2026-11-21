@@ -408,7 +408,7 @@ void QmlPlayerBridge::setTopVignette(bool value) {
 }
 int QmlPlayerBridge::topVignetteStrength() const { return int(std::lround(settings().topVignetteStrength * 100.0f)); }
 void QmlPlayerBridge::setTopVignetteStrength(int percent) {
-    percent = std::clamp(percent, 25, 600);
+    percent = std::clamp(percent, 25, 1000);
     auto s = settings();
     if (int(std::lround(s.topVignetteStrength * 100.0f)) == percent) return;
     s.topVignetteStrength = float(percent) / 100.0f;
@@ -441,7 +441,7 @@ void QmlPlayerBridge::setTopVignetteRolloff(int percent) {
 }
 int QmlPlayerBridge::topVignetteAllowance() const { return int(std::lround(settings().topVignetteAllowance * 100.0f)); }
 void QmlPlayerBridge::setTopVignetteAllowance(int percent) {
-    percent = std::clamp(percent, 0, 200);
+    percent = std::clamp(percent, -200, 200);
     auto s = settings();
     if (int(std::lround(s.topVignetteAllowance * 100.0f)) == percent) return;
     s.topVignetteAllowance = float(percent) / 100.0f;
@@ -463,7 +463,7 @@ void QmlPlayerBridge::setBottomVignette(bool value) {
 }
 int QmlPlayerBridge::bottomVignetteStrength() const { return int(std::lround(settings().bottomVignetteStrength * 100.0f)); }
 void QmlPlayerBridge::setBottomVignetteStrength(int percent) {
-    percent = std::clamp(percent, 25, 600);
+    percent = std::clamp(percent, 25, 1000);
     auto s = settings();
     if (int(std::lround(s.bottomVignetteStrength * 100.0f)) == percent) return;
     s.bottomVignetteStrength = float(percent) / 100.0f;
@@ -496,7 +496,7 @@ void QmlPlayerBridge::setBottomVignetteRolloff(int percent) {
 }
 int QmlPlayerBridge::bottomVignetteAllowance() const { return int(std::lround(settings().bottomVignetteAllowance * 100.0f)); }
 void QmlPlayerBridge::setBottomVignetteAllowance(int percent) {
-    percent = std::clamp(percent, 0, 200);
+    percent = std::clamp(percent, -200, 200);
     auto s = settings();
     if (int(std::lround(s.bottomVignetteAllowance * 100.0f)) == percent) return;
     s.bottomVignetteAllowance = float(percent) / 100.0f;

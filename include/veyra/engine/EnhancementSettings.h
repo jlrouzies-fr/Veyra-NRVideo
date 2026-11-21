@@ -534,8 +534,8 @@ struct EnhancementSettings {
     // eased over about a second. The lift reaches `depth` of the height and falls off as
     // (1 - y/depth)^rolloff. Shell preference; on/off rebuilds, the three values are live.
     bool topVignette=false;
-    float topVignetteStrength=1.0f;  // stops, 0.25..6
-    float topVignetteAllowance=1.0f; // stops the top may be darker untouched, 0..2
+    float topVignetteStrength=1.0f;  // stops, 0.25..10
+    float topVignetteAllowance=1.0f; // stops the top may be darker untouched, -2..2 (below 0: brighter than the rest)
     float topVignetteDepth=0.30f;    // share of the height, 0.10..0.60
     float topVignetteRolloff=1.5f;   // exponent, 0.5 (gentle, reaches far) .. 4 (hugs the edge)
     float topVignetteMinNits=20.0f;  // scene level (geometric mean) of full effect; off below a quarter of it, 1..40
@@ -725,12 +725,12 @@ struct EnhancementSettings {
         if(!(sharpenStrength>=0.0f&&sharpenStrength<=1.0f))return "invalid sharpen strength";
         if(!(detailMatchStrength>=0.0f&&detailMatchStrength<=1.0f))return "invalid detail match strength";
         if(!(psychoPeakNits>=100.0f&&psychoPeakNits<=4000.0f))return "invalid psycho peak";
-        if(!(topVignetteStrength>=0.25f&&topVignetteStrength<=6.0f))return "invalid top vignette strength";
-        if(!(topVignetteAllowance>=0.0f&&topVignetteAllowance<=2.0f))return "invalid top vignette allowance";
+        if(!(topVignetteStrength>=0.25f&&topVignetteStrength<=10.0f))return "invalid top vignette strength";
+        if(!(topVignetteAllowance>=-2.0f&&topVignetteAllowance<=2.0f))return "invalid top vignette allowance";
         if(!(topVignetteDepth>=0.10f&&topVignetteDepth<=0.60f))return "invalid top vignette depth";
         if(!(topVignetteRolloff>=0.5f&&topVignetteRolloff<=4.0f))return "invalid top vignette rolloff";
-        if(!(bottomVignetteStrength>=0.25f&&bottomVignetteStrength<=6.0f))return "invalid bottom vignette strength";
-        if(!(bottomVignetteAllowance>=0.0f&&bottomVignetteAllowance<=2.0f))return "invalid bottom vignette allowance";
+        if(!(bottomVignetteStrength>=0.25f&&bottomVignetteStrength<=10.0f))return "invalid bottom vignette strength";
+        if(!(bottomVignetteAllowance>=-2.0f&&bottomVignetteAllowance<=2.0f))return "invalid bottom vignette allowance";
         if(!(bottomVignetteDepth>=0.10f&&bottomVignetteDepth<=0.60f))return "invalid bottom vignette depth";
         if(!(bottomVignetteRolloff>=0.5f&&bottomVignetteRolloff<=4.0f))return "invalid bottom vignette rolloff";
         if(!(topVignetteMinNits>=1.0f&&topVignetteMinNits<=40.0f))return "invalid top vignette scene level";

@@ -1784,7 +1784,7 @@ VPage {
                         implicitWidth: 110
                         valueFromModel: true
                         resettable: true; defaultValue: 100
-                        from: 25; to: 600; stepSize: 5
+                        from: 25; to: 1000; stepSize: 5
                         value: veyra.topVignetteStrength
                         onMoved: value => veyra.topVignetteStrength = Math.round(value)
                     }
@@ -1798,7 +1798,7 @@ VPage {
                         implicitWidth: 110
                         valueFromModel: true
                         resettable: true; defaultValue: 100
-                        from: 0; to: 200; stepSize: 5
+                        from: -200; to: 200; stepSize: 5
                         value: veyra.topVignetteAllowance
                         onMoved: value => veyra.topVignetteAllowance = Math.round(value)
                     }
@@ -1859,7 +1859,7 @@ VPage {
                         implicitWidth: 110
                         valueFromModel: true
                         resettable: true; defaultValue: 100
-                        from: 25; to: 600; stepSize: 5
+                        from: 25; to: 1000; stepSize: 5
                         value: veyra.bottomVignetteStrength
                         onMoved: value => veyra.bottomVignetteStrength = Math.round(value)
                     }
@@ -1873,7 +1873,7 @@ VPage {
                         implicitWidth: 110
                         valueFromModel: true
                         resettable: true; defaultValue: 100
-                        from: 0; to: 200; stepSize: 5
+                        from: -200; to: 200; stepSize: 5
                         value: veyra.bottomVignetteAllowance
                         onMoved: value => veyra.bottomVignetteAllowance = Math.round(value)
                     }
