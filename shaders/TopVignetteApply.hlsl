@@ -1,5 +1,5 @@
 // Top vignette compensation, step 3 of 3: brighten the top rows by the eased lift, strongest at
-// the top edge and fading to nothing at `depth` of the height. Bright pixels (HUD, sun, clouds
+// the top edge and fading as (1 - y/depth)^rolloff to nothing at `depth` of the height. Bright pixels (HUD, sun, clouds
 // far above the scene level) are left alone. Only the top `depth` rows are dispatched.
 #include "HdrColor.hlsli"
 Texture2D<float4> frameTex : register(t0);
@@ -10,7 +10,8 @@ cbuffer Constants : register(b0) {
     float outputMode;   // 0 sRGB, 1 scRGB, 2 PQ
     float depthRows;
     float sdrWhiteNits;
-    float pad0, pad1, pad2;
+    float rolloff;      // exponent of (1 - y/depth)
+    float pad1, pad2;
 };
 
 float3 toLinear(float3 e) {
@@ -31,7 +32,7 @@ void main(uint3 id : SV_DispatchThreadID) {
     const float4 centre=frameTex[id.xy];
     const float4 state=stateTex[uint2(0,0)];
     const float t=saturate(1.0-(float(id.y)+0.5)/depthRows);
-    const float lift=state.x*t*sqrt(t);
+    const float lift=state.x*pow(t,rolloff);
     if(lift<1e-4||!(state.y>0)){outputTex[id.xy]=centre;return;}
     const float3 l=toLinear(centre.rgb);
     const float y=dot(l,float3(0.2126,0.7152,0.0722));

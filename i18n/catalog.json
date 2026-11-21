@@ -24193,6 +24193,38 @@
    "en": "The engine did not accept top vignette compensation; the previous setting is kept",
    "ja": "エンジンが上部周辺減光の補正を受け付けなかったため、以前の設定を維持します",
    "ko": "엔진이 상단 비네팅 보정을 받아들이지 않아 이전 설정을 유지합니다"
+  },
+  {
+   "zh": "作用深度",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "作用深度",
+   "en": "Reach",
+   "ja": "適用範囲",
+   "ko": "적용 깊이"
+  },
+  {
+   "zh": "从顶边往下作用到画面高度的多少（%）：越大，补偿延伸得越低",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "從頂邊往下作用到畫面高度的多少（%）：越大，補償延伸得越低",
+   "en": "How far down from the top edge it acts, in percent of the picture height: higher reaches lower",
+   "ja": "上端から画面の高さの何 % まで作用するか：大きいほど下まで届きます",
+   "ko": "위쪽 가장자리에서 화면 높이의 몇 %까지 작용할지: 클수록 더 아래까지 닿습니다"
+  },
+  {
+   "zh": "衰减曲线",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "衰減曲線",
+   "en": "Roll-off",
+   "ja": "減衰カーブ",
+   "ko": "감쇠 곡선"
+  },
+  {
+   "zh": "从顶边到作用深度的衰减方式：小于 100 缓和、延伸得远；大于 100 集中在顶边附近（150 = 默认）",
+   "src": "qml/Veyra/ProPage.qml",
+   "zh-TW": "從頂邊到作用深度的衰減方式：小於 100 緩和、延伸得遠；大於 100 集中在頂邊附近（150 = 預設）",
+   "en": "How the lift fades from the top edge to the reach: below 100 gentle and far-reaching, above 100 concentrated near the top edge (150 = default)",
+   "ja": "上端から適用範囲までの減衰の仕方：100 未満は緩やかで遠くまで、100 超は上端付近に集中（150 = 既定）",
+   "ko": "위쪽 가장자리에서 적용 깊이까지 줄어드는 방식: 100 미만은 완만하고 멀리, 100 초과는 위쪽 가장자리 근처에 집중(150 = 기본값)"
   }
  ]
 }

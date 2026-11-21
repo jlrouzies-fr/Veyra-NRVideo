@@ -1784,9 +1784,37 @@ VPage {
                         implicitWidth: 110
                         valueFromModel: true
                         resettable: true; defaultValue: 100
-                        from: 25; to: 200; stepSize: 5
+                        from: 25; to: 400; stepSize: 5
                         value: veyra.topVignetteStrength
                         onMoved: value => veyra.topVignetteStrength = Math.round(value)
+                    }
+                }
+                VRow {
+                    label: qsTr("作用深度")
+                    visible: veyra.topVignette
+                    hint: qsTr("从顶边往下作用到画面高度的多少（%）：越大，补偿延伸得越低")
+                    VSlider {
+                        objectName: "node-top-vignette-depth"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 30
+                        from: 10; to: 60; stepSize: 1
+                        value: veyra.topVignetteDepth
+                        onMoved: value => veyra.topVignetteDepth = Math.round(value)
+                    }
+                }
+                VRow {
+                    label: qsTr("衰减曲线")
+                    visible: veyra.topVignette
+                    hint: qsTr("从顶边到作用深度的衰减方式：小于 100 缓和、延伸得远；大于 100 集中在顶边附近（150 = 默认）")
+                    VSlider {
+                        objectName: "node-top-vignette-rolloff"
+                        implicitWidth: 110
+                        valueFromModel: true
+                        resettable: true; defaultValue: 150
+                        from: 50; to: 400; stepSize: 10
+                        value: veyra.topVignetteRolloff
+                        onMoved: value => veyra.topVignetteRolloff = Math.round(value)
                     }
                 }
                 VRow {

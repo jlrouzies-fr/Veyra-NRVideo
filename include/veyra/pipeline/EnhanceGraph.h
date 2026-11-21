@@ -166,6 +166,8 @@ struct EnhanceGraphDesc {
     float psychoPeakNits=400.0f;
     bool topVignette=false;
     float topVignetteStrength=1.0f;
+    float topVignetteDepth=0.30f;
+    float topVignetteRolloff=1.5f;
     bool vfgFastFallback=false; // live 2X with vfgAutoRegulate: also load the next faster VFG model
     uint64_t settingsRevision=1;
     engine::FlowQuality flowQuality=engine::FlowQuality::Balanced;
@@ -1053,7 +1055,7 @@ private:
     // (TopVignetteMeasure / Solve / Apply). The state texture carries the eased lift.
     ComputePass topVigMeasurePass_,topVigSolvePass_,topVigApplyPass_;
     ComPtr<ID3D12Resource> topVigPartial_,topVigState_,topVigScratch_;
-    unsigned topVigGroupsX_=0,topVigGroupsY_=0,topVigDepthRows_=0;
+    unsigned topVigGroupsX_=0,topVigGroupsY_=0,topVigScratchRows_=0;
     bool topVigReset_=true;
     bool topVignetteActive()const{return desc_.topVignette&&!desc_.stillImage;}
     void applyTopVignette(ID3D12GraphicsCommandList*,unsigned parity);

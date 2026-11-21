@@ -490,6 +490,9 @@ class QmlPlayerBridge : public QObject {
     // 顶部暗角补偿: EnhancementSettings::topVignette / topVignetteStrength (percent of a stop).
     Q_PROPERTY(bool topVignette READ topVignette WRITE setTopVignette NOTIFY settingsChanged)
     Q_PROPERTY(int topVignetteStrength READ topVignetteStrength WRITE setTopVignetteStrength NOTIFY settingsChanged)
+    // Depth in percent of the height, roll-off exponent in percent (150 = 1.5).
+    Q_PROPERTY(int topVignetteDepth READ topVignetteDepth WRITE setTopVignetteDepth NOTIFY settingsChanged)
+    Q_PROPERTY(int topVignetteRolloff READ topVignetteRolloff WRITE setTopVignetteRolloff NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -1213,6 +1216,10 @@ public:
     void setTopVignette(bool value);
     int topVignetteStrength() const;
     void setTopVignetteStrength(int percent);
+    int topVignetteDepth() const;
+    void setTopVignetteDepth(int percent);
+    int topVignetteRolloff() const;
+    void setTopVignetteRolloff(int percent);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;

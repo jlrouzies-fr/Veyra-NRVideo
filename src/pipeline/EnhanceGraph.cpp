@@ -1098,13 +1098,14 @@ bool EnhanceGraph::createResources()
     }
     if(topVignetteActive()){
         topVigGroupsX_=(workW_+63)/64;topVigGroupsY_=(workH_+63)/64;
-        topVigDepthRows_=std::max(1u,unsigned(std::ceil(workH_*0.30)));
+        // Sized for the deepest setting, so the depth stays a live value.
+        topVigScratchRows_=std::max(1u,unsigned(std::ceil(workH_*0.60)));
         topVigPartial_=makeTexture(context_.device(),topVigGroupsX_,topVigGroupsY_,DXGI_FORMAT_R32G32B32A32_FLOAT,true);
         topVigState_=makeTexture(context_.device(),1,1,DXGI_FORMAT_R32G32B32A32_FLOAT,true);
-        topVigScratch_=makeTexture(context_.device(),workW_,topVigDepthRows_,outputFormat(),true);
+        topVigScratch_=makeTexture(context_.device(),workW_,topVigScratchRows_,outputFormat(),true);
         if(!topVigPartial_||!topVigState_||!topVigScratch_)return false;
         topVigReset_=true;
-        veyra::log::info("top-vignette",std::format("enabled maxStops={:.2f} depthRows={} groups={}x{}",desc_.topVignetteStrength,topVigDepthRows_,topVigGroupsX_,topVigGroupsY_));
+        veyra::log::info("top-vignette",std::format("enabled maxStops={:.2f} depth={:.2f} rolloff={:.2f} groups={}x{}",desc_.topVignetteStrength,desc_.topVignetteDepth,desc_.topVignetteRolloff,topVigGroupsX_,topVigGroupsY_));
     }
     if(detailMatchActive()){
         detailGroupsX_=(workW_+15)/16;detailGroupsY_=(workH_+15)/16;
@@ -3057,10 +3058,13 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
     auto* partial=topVigPartial_.Get();auto* state=topVigState_.Get();auto* scratch=topVigScratch_.Get();
     const float mode=hdr10Output()?2.f:desc_.hdrOutput?1.f:0.f;
     constexpr float sdrWhiteNits=100.0f;
+    const unsigned depthRows=std::clamp(unsigned(std::ceil(workH_*desc_.topVignetteDepth)),1u,topVigScratchRows_);
+    // The measured top band: a third of the corrected depth, at most the top 10%.
+    const float bandRows=std::min(float(depthRows)/3.0f,float(workH_)*0.10f);
     tracker_.transition(list,frame,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     tracker_.transition(list,partial,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     {
-        const float c[8]={uintBits(workW_),uintBits(workH_),mode,float(workH_)*0.10f,sdrWhiteNits,0,0,0};
+        const float c[8]={uintBits(workW_),uintBits(workH_),mode,bandRows,sdrWhiteNits,0,0,0};
         const auto heap=topVigMeasurePass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
         topVigMeasurePass_.bind(list,c,heap+parity*2*topVigMeasurePass_.increment,heap+(parity*2+1)*topVigMeasurePass_.increment);
         list->Dispatch(topVigGroupsX_,topVigGroupsY_,1);
@@ -3082,10 +3086,10 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
     tracker_.transition(list,state,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     tracker_.transition(list,scratch,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     {
-        const float c[8]={uintBits(workW_),uintBits(workH_),mode,float(topVigDepthRows_),sdrWhiteNits,0,0,0};
+        const float c[8]={uintBits(workW_),uintBits(workH_),mode,float(depthRows),sdrWhiteNits,desc_.topVignetteRolloff,0,0};
         const auto heap=topVigApplyPass_.heap->GetGPUDescriptorHandleForHeapStart().ptr;
         topVigApplyPass_.bind(list,c,heap+parity*3*topVigApplyPass_.increment,heap+(parity*3+2)*topVigApplyPass_.increment);
-        list->Dispatch((workW_+15)/16,(topVigDepthRows_+15)/16,1);
+        list->Dispatch((workW_+15)/16,(depthRows+15)/16,1);
     }
     tracker_.uavBarrier(list,scratch);
     tracker_.transition(list,scratch,D3D12_RESOURCE_STATE_COPY_SOURCE);
@@ -3093,7 +3097,7 @@ void EnhanceGraph::applyTopVignette(ID3D12GraphicsCommandList* list,unsigned par
     D3D12_TEXTURE_COPY_LOCATION dst{},src{};
     dst.pResource=frame;dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;dst.SubresourceIndex=0;
     src.pResource=scratch;src.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;src.SubresourceIndex=0;
-    const D3D12_BOX box{0,0,0,workW_,topVigDepthRows_,1};
+    const D3D12_BOX box{0,0,0,workW_,depthRows,1};
     list->CopyTextureRegion(&dst,0,0,0,&src,&box);
     for(auto* r:{frame,scratch,partial,state})tracker_.transition(list,r,D3D12_RESOURCE_STATE_COMMON);
 }
@@ -5085,6 +5089,8 @@ bool EnhanceGraph::applySettings(const engine::EnhancementSettings& s){
     desc_.detailMatchStrength=s.detailMatchStrength;
     desc_.psychoPeakNits=s.psychoPeakNits;
     desc_.topVignetteStrength=s.topVignetteStrength;
+    desc_.topVignetteDepth=s.topVignetteDepth;
+    desc_.topVignetteRolloff=s.topVignetteRolloff;
     if(desc_.nrReusePreview&&s.nr){
         const auto previousReuse=desc_.nrReuse;desc_.nrReuse=s.nrReuse;
         if(nrReusePass_&&desc_.nrReuse!=previousReuse){

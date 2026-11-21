@@ -356,8 +356,16 @@ QmlPlayerBridge::QmlPlayerBridge(engine::EngineController& engine, std::filesyst
             if (s.topVignette != on) { s.topVignette = on; changed = true; }
         }
         if (p.contains(QStringLiteral("topVignetteStrength"))) {
-            const float stops = float(std::clamp(p.value(QStringLiteral("topVignetteStrength")).toInt(), 25, 200)) / 100.0f;
+            const float stops = float(std::clamp(p.value(QStringLiteral("topVignetteStrength")).toInt(), 25, 400)) / 100.0f;
             if (s.topVignetteStrength != stops) { s.topVignetteStrength = stops; changed = true; }
+        }
+        if (p.contains(QStringLiteral("topVignetteDepth"))) {
+            const float depth = float(std::clamp(p.value(QStringLiteral("topVignetteDepth")).toInt(), 10, 60)) / 100.0f;
+            if (s.topVignetteDepth != depth) { s.topVignetteDepth = depth; changed = true; }
+        }
+        if (p.contains(QStringLiteral("topVignetteRolloff"))) {
+            const float rolloff = float(std::clamp(p.value(QStringLiteral("topVignetteRolloff")).toInt(), 50, 400)) / 100.0f;
+            if (s.topVignetteRolloff != rolloff) { s.topVignetteRolloff = rolloff; changed = true; }
         }
         if (p.contains(QStringLiteral("psycho"))) {
             const bool on = p.value(QStringLiteral("psycho")).toBool();

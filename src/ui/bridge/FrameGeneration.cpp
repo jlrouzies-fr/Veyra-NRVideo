@@ -408,13 +408,35 @@ void QmlPlayerBridge::setTopVignette(bool value) {
 }
 int QmlPlayerBridge::topVignetteStrength() const { return int(std::lround(settings().topVignetteStrength * 100.0f)); }
 void QmlPlayerBridge::setTopVignetteStrength(int percent) {
-    percent = std::clamp(percent, 25, 200);
+    percent = std::clamp(percent, 25, 400);
     auto s = settings();
     if (int(std::lround(s.topVignetteStrength * 100.0f)) == percent) return;
     s.topVignetteStrength = float(percent) / 100.0f;
     if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
     impl_->prefs[QStringLiteral("topVignetteStrength")] = percent;
     if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "top vignette strength not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::topVignetteDepth() const { return int(std::lround(settings().topVignetteDepth * 100.0f)); }
+void QmlPlayerBridge::setTopVignetteDepth(int percent) {
+    percent = std::clamp(percent, 10, 60);
+    auto s = settings();
+    if (int(std::lround(s.topVignetteDepth * 100.0f)) == percent) return;
+    s.topVignetteDepth = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("topVignetteDepth")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "topVignetteDepth not saved");
+    emit settingsChanged();
+}
+int QmlPlayerBridge::topVignetteRolloff() const { return int(std::lround(settings().topVignetteRolloff * 100.0f)); }
+void QmlPlayerBridge::setTopVignetteRolloff(int percent) {
+    percent = std::clamp(percent, 50, 400);
+    auto s = settings();
+    if (int(std::lround(s.topVignetteRolloff * 100.0f)) == percent) return;
+    s.topVignetteRolloff = float(percent) / 100.0f;
+    if (!impl_->commit(std::move(s))) { emit notice(tr("引擎未接受顶部暗角补偿，原设置保留"), true); return; }
+    impl_->prefs[QStringLiteral("topVignetteRolloff")] = percent;
+    if (!impl_->savePrefs()) veyra::log::warn("ui-prefs", "topVignetteRolloff not saved");
     emit settingsChanged();
 }
 bool QmlPlayerBridge::dlssgLiteAvailable() const {
