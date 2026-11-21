@@ -4,7 +4,7 @@
 // excess, capped at maxStops, faded out for dark scenes, and eased in over about a second so a
 // scene change never jumps it.
 Texture2D<float4> partialTex : register(t0);
-RWTexture2D<float4> stateTex : register(u0);   // 2x1: per edge (lift stops, scene geometric mean nits, -, -)
+RWTexture2D<float4> stateTex : register(u0);   // 2x1: per edge (lift stops, scene geometric mean nits, release frames left, -)
 cbuffer Constants : register(b0) {
     uint groupsX, groupsY;
     float maxStops;
@@ -14,7 +14,7 @@ cbuffer Constants : register(b0) {
     float darkNits, fullNits;   // scene geometric mean: off below darkNits, full above fullNits
     uint side;                  // state texel: 0 top, 1 bottom
     float rolloffMean;          // mean of the roll-off weight over the band rows (0..1]
-    float easeDown;             // share of the way to a lower target per real frame
+    float easeDown;             // the same while releasing after a scene change
     uint pad2;
 };
 
@@ -45,9 +45,13 @@ void main(uint index : SV_GroupIndex) {
     // as a whole reaches the reference (less the allowance).
     const float target=clamp((deficit-allowanceStops)/max(rolloffMean,0.05),0,maxStops)*active;
     float4 state=reset?float4(target,sceneNits,0,0):stateTex[uint2(side,0)];
-    // Build up slowly, let go fast: stepping into a bright scene must not keep a dark
-    // scene's lift for seconds.
-    state.x=lerp(state.x,target,reset?1.0:target<state.x?easeDown:ease);
-    state.y=lerp(state.y,sceneNits,reset?1.0:sceneNits>state.y?easeDown:ease);
+    // Slow both ways, so a passing car or a camera turn never pumps the lift. Only a real
+    // scene change (the reference jumps up by more than 1.5 stops against its eased level, as
+    // when stepping from a dark interior into daylight) lets the lift go fast, for 10 frames.
+    if(!reset&&state.y>0&&log2(sceneNits/state.y)>1.5)state.z=10;
+    const bool release=state.z>0.5;
+    state.x=lerp(state.x,target,reset?1.0:release&&target<state.x?easeDown:ease);
+    state.y=lerp(state.y,sceneNits,reset?1.0:release?easeDown:ease);
+    state.z=max(state.z-1,0);
     stateTex[uint2(side,0)]=state;
 }
