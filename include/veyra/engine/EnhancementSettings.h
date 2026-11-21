@@ -545,7 +545,7 @@ struct EnhancementSettings {
     float bottomVignetteAllowance=1.0f;
     float bottomVignetteDepth=0.30f;
     float bottomVignetteRolloff=1.5f;
-    float bottomVignetteMinNits=3.0f; // lower: the bottom vignette shows in evening and night scenes
+    float bottomVignetteMinNits=1.0f; // lower: the bottom vignette shows in evening and night scenes
     ContentRate content=ContentRate::Transport;
     AudioSyncMode audioSync=AudioSyncMode::Automatic;
     int32_t audioOffsetMs=0;

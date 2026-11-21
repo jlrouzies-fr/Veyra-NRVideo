@@ -1914,7 +1914,7 @@ VPage {
                         objectName: "node-bottom-vignette-min-nits"
                         implicitWidth: 110
                         valueFromModel: true
-                        resettable: true; defaultValue: 3
+                        resettable: true; defaultValue: 1
                         from: 1; to: 40; stepSize: 1
                         value: veyra.bottomVignetteMinNits
                         onMoved: value => veyra.bottomVignetteMinNits = Math.round(value)
