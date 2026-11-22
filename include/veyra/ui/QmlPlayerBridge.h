@@ -41,6 +41,7 @@ namespace veyra::ui {
 
 class MoonlightModel;
 class XboxModel;
+class LiveTranslation;
 
 class QmlPlayerBridge : public QObject {
     Q_OBJECT
@@ -66,6 +67,7 @@ class QmlPlayerBridge : public QObject {
     Q_PROPERTY(QString flowBackend READ flowBackend NOTIFY snapshotChanged)
     Q_PROPERTY(int opticalFlowChoice READ opticalFlowChoice NOTIFY settingsChanged)
     Q_PROPERTY(QVariantList stageTimings READ stageTimings NOTIFY snapshotChanged)
+    Q_PROPERTY(QVariantList cpuTimings READ cpuTimings NOTIFY snapshotChanged)
     Q_PROPERTY(QVariantMap nodeTimings READ nodeTimings NOTIFY snapshotChanged)
     Q_PROPERTY(QVariantMap nodeAnchors READ nodeAnchors NOTIFY nodeAnchorsChanged)
     Q_PROPERTY(double stageBudgetMs READ stageBudgetMs NOTIFY snapshotChanged)
@@ -227,7 +229,7 @@ class QmlPlayerBridge : public QObject {
     Q_PROPERTY(QVariantMap preferences READ preferences NOTIFY preferencesChanged)
     Q_PROPERTY(QString gpuPriorityStatus READ gpuPriorityStatus NOTIFY preferencesChanged)
     Q_PROPERTY(bool enhancementPrewarmAvailable READ enhancementPrewarmAvailable CONSTANT)
-    // The interface language in use (zh-CN / zh-TW / en / ja / ko), after "auto" is resolved;
+    // The interface language in use after "auto" is resolved;
     // preferences.language holds the choice itself.
     Q_PROPERTY(QString uiLanguage READ uiLanguage NOTIFY preferencesChanged)
     Q_PROPERTY(QString screenshotDirectory READ screenshotDirectory NOTIFY preferencesChanged)
@@ -289,6 +291,9 @@ class QmlPlayerBridge : public QObject {
     // --- playback ----------------------------------------------------------
     Q_PROPERTY(bool deinterlaceAvailable READ deinterlaceAvailable CONSTANT)
     Q_PROPERTY(QString statusText READ statusText NOTIFY snapshotChanged)
+    Q_PROPERTY(bool timelineSeekable READ timelineSeekable NOTIFY snapshotChanged)
+    Q_PROPERTY(QVariantMap liveTimeshift READ liveTimeshift NOTIFY snapshotChanged)
+    Q_PROPERTY(bool openingSource READ openingSource NOTIFY snapshotChanged)
     Q_PROPERTY(bool running READ running NOTIFY snapshotChanged)
     Q_PROPERTY(bool paused READ paused NOTIFY snapshotChanged)
     Q_PROPERTY(bool failed READ failed NOTIFY snapshotChanged)
@@ -597,6 +602,11 @@ class QmlPlayerBridge : public QObject {
     Q_PROPERTY(int bottomVignetteRolloff READ bottomVignetteRolloff WRITE setBottomVignetteRolloff NOTIFY settingsChanged)
     Q_PROPERTY(int bottomVignetteMinNits READ bottomVignetteMinNits WRITE setBottomVignetteMinNits NOTIFY settingsChanged)
     Q_PROPERTY(int bottomVignetteAllowance READ bottomVignetteAllowance WRITE setBottomVignetteAllowance NOTIFY settingsChanged)
+    // 自适应倍率 / 帧节奏修复 / HUD 自动锁定 (ported from PushFPS): EnhancementSettings::
+    // fgAdaptive, pacingRepair and hudLock, global controls kept in shell preferences.
+    Q_PROPERTY(bool fgAdaptive READ fgAdaptive WRITE setFgAdaptive NOTIFY settingsChanged)
+    Q_PROPERTY(bool pacingRepair READ pacingRepair WRITE setPacingRepair NOTIFY settingsChanged)
+    Q_PROPERTY(bool hudLock READ hudLock WRITE setHudLock NOTIFY settingsChanged)
     Q_PROPERTY(bool dlssgLiteAvailable READ dlssgLiteAvailable CONSTANT)
     Q_PROPERTY(QString dlssgLiteHint READ dlssgLiteHint NOTIFY snapshotChanged)
     Q_PROPERTY(int contentRate READ contentRate WRITE setContentRate NOTIFY settingsChanged)
@@ -614,6 +624,7 @@ class QmlPlayerBridge : public QObject {
     Q_PROPERTY(bool variableRefresh READ variableRefresh WRITE setVariableRefresh NOTIFY presentationChanged)
     // Explicit per-application driver setup, independent of the presentation switch.
     Q_PROPERTY(QObject* nvidiaVrrProfile READ nvidiaVrrProfile CONSTANT)
+    Q_PROPERTY(QObject* liveTranslation READ liveTranslation CONSTANT)
     Q_PROPERTY(int vrrState READ vrrState NOTIFY perfChanged)
     Q_PROPERTY(QString vrrHint READ vrrHint NOTIFY perfChanged)
     // Display state of the shown monitor for the 信号 card: Windows HDR (-1
@@ -814,6 +825,7 @@ public:
     int opticalFlowChoice() const;
     Q_INVOKABLE bool setOpticalFlowChoice(int backend);
     QVariantList stageTimings() const;
+    QVariantList cpuTimings() const;
     QVariantMap nodeTimings() const;
     QVariantMap nodeAnchors() const;
     Q_INVOKABLE bool setNodeAnchor(const QString& key, double x, double y);
@@ -921,7 +933,8 @@ public:
     Q_INVOKABLE bool openCaptureDriverSettings(bool inputSelector = false);
     Q_INVOKABLE bool startCaptureSession();
     Q_INVOKABLE bool setScreenOption(const QString& key, const QVariant& value);
-    Q_INVOKABLE bool startScreenCapture();
+    Q_INVOKABLE bool startScreenCapture(bool cropPreview = false);
+    Q_INVOKABLE bool applyScreenCrop(int left, int top, int right, int bottom);
     bool gameMode() const;
     bool passthroughActive() const;
     bool gameInputActive() const;
@@ -1045,6 +1058,10 @@ public:
     // which values the UI can command and which it can only display.
     bool deinterlaceAvailable() const;
     QString statusText() const;
+    bool timelineSeekable() const;
+    QVariantMap liveTimeshift() const;
+    Q_INVOKABLE double timelineSeconds(double fraction) const;
+    Q_INVOKABLE void returnToLive();
     bool running() const;
     bool paused() const;
     bool failed() const;
@@ -1340,6 +1357,12 @@ public:
     void setBottomVignetteMinNits(int nits);
     int bottomVignetteAllowance() const;
     void setBottomVignetteAllowance(int percent);
+    bool fgAdaptive() const;
+    void setFgAdaptive(bool value);
+    bool pacingRepair() const;
+    void setPacingRepair(bool value);
+    bool hudLock() const;
+    void setHudLock(bool value);
     bool dlssgLiteAvailable() const;
     QString dlssgLiteHint() const;
     int contentRate() const;
@@ -1348,6 +1371,7 @@ public:
     void setDisplaySync(int value);
     bool variableRefresh() const;
     QObject* nvidiaVrrProfile() const { return nvidiaVrrProfile_; }
+    QObject* liveTranslation() const;
     void setVariableRefresh(bool value);
     int vrrState() const;
     QString vrrHint() const;
@@ -1769,9 +1793,10 @@ private:
     QString vrrSummaryText(int level) const;
     void applyPresentation();
     void applyAspect(bool force);
-    // Live sources started from the start page: switch to 极简 first, show the
-    // connecting note, and start the engine once the page and window have settled.
-    void openAfterCinema(const QString& pending, std::function<void()> open);
+    // From Home, show the destination and connection note before opening the
+    // live source so the video viewport has time to settle.
+    void openAfterLivePage(const QString& pending, std::function<void()> open,
+                           const QString& homeTarget = QStringLiteral("min"));
     void rememberSource(const QString& kind, const QString& label);
     // Edits either mask node in the active chain; rolls back when refused.
     void updateMaskOverlay();
@@ -1814,6 +1839,7 @@ private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
     QObject* nvidiaVrrProfile_ = nullptr;
+    LiveTranslation* liveTranslation_ = nullptr;
     QObject* updates_ = nullptr;
 };
 

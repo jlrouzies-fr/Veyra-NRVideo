@@ -796,6 +796,8 @@ bool requiresGraphRebuild(const EnhancementSettings& savedPrevious, const Enhanc
     if (previous.psycho != next.psycho) return true;
     if (previous.topVignette != next.topVignette) return true;
     if (previous.bottomVignette != next.bottomVignette) return true;
+    // Live HUD Lock owns its mask and compose passes (pipeline/HudLock.h).
+    if (previous.multiplier > 1 && next.multiplier > 1 && previous.hudLock != next.hudLock) return true;
     if (previous.flow != next.flow) return true;
     if (previous.captureCompatible != next.captureCompatible) return true;
     if (previous.forceSdrPreview != next.forceSdrPreview) return true;

@@ -2,6 +2,7 @@
 #include "../QmlPlayerBridge_p.h"
 #include "veyra/ngx/AnrProvider.h"
 #include "veyra/gfx/AmfFrcBackend.h"
+#include "veyra/ui/UpdateChecker.h"
 
 namespace veyra::ui {
 // --- shell preferences -------------------------------------------------------
@@ -195,10 +196,13 @@ bool QmlPlayerBridge::setPreference(const QString& key, const QVariant& value) {
         {"listInspectorWidth", {376, 4000}},
         // Network sources (#48): seconds to collect before the first picture; -1 follows the buffer level.
         {"networkPrebuffer", {-1, 60}},
+        {"networkTimeshift", {0, 600}},
         // Live recording: the target bitrate for the file, and the frame rate
         // cap (0 keeps the presented rate).
         {"recordBitrateMbps", {0, 400}},
         {"recordFps", {0, 240}},
+        {"recordSplitSeconds", {0, 86400}},
+        {"recordSplitMiB", {0, 1048576}},
         {"virtualCameraFps", {0, 120}},
         // Instant replay (#103): seconds the buffer keeps.
         {"replaySeconds", {15, 600}}};
@@ -287,9 +291,13 @@ bool QmlPlayerBridge::setPreference(const QString& key, const QVariant& value) {
         stored = v;
     } else if (key == QLatin1String("rememberPosition") || key == QLatin1String("dockPinned")) {
         stored = value.toBool();
+    } else if (key == QLatin1String("updateDownloadRoute")) {
+        const auto name = value.toString();
+        if (!portable::parseDownloadRoute(name)) return false;
+        stored = name;
     } else if (key == QLatin1String("language")) {
         const QString v = value.toString();
-        static const QStringList languages{"auto", "zh-CN", "zh-TW", "en", "ja", "ko"};
+        static const QStringList languages{"auto", "zh-CN", "zh-TW", "en", "ja", "ko", "es", "fr", "de", "pt-BR", "ru"};
         if (!languages.contains(v)) return false;
         stored = v;
     } else if (key == QLatin1String("monitorGpu")) {
@@ -318,6 +326,11 @@ bool QmlPlayerBridge::setPreference(const QString& key, const QVariant& value) {
     return true;
 }
 void QmlPlayerBridge::applyPreference(const QString& key) {
+    if (key == QLatin1String("updateDownloadRoute")) {
+        const auto route = portable::parseDownloadRoute(impl_->prefString("updateDownloadRoute"));
+        static_cast<UpdateChecker*>(updates_)->setDownloadRoute(route.value_or(portable::DownloadRoute::GitHub));
+        return;
+    }
     if(key==QLatin1String("virtualCameraFps")&&virtualCameraEnabled())setVirtualCameraEnabled(true);
     if(key==QLatin1String("captureAudioMonitor"))
         impl_->engine.setCaptureAudioMonitoring(impl_->prefBool("captureAudioMonitor",true));
@@ -655,7 +668,9 @@ bool QmlPlayerBridge::eventFilter(QObject* watched, QEvent* event) {
             // Typing into a text field never compares.
             const QObject* focus = QGuiApplication::focusObject();
             const bool typing = focus && (focus->inherits("QQuickTextInput") || focus->inherits("QQuickTextEdit"));
-            if (!hold.isEmpty() && hold[0].toCombined() == pressed && !typing && impl_->prefBool("holdCompare", true)) {
+            // The walkthrough owns keyboard input, including custom hold-to-compare bindings.
+            const bool onboarding = watched->property("onboardingActive").toBool();
+            if (!hold.isEmpty() && hold[0].toCombined() == pressed && !typing && !onboarding && impl_->prefBool("holdCompare", true)) {
                 const bool down = type == QEvent::KeyPress;
                 if (down != impl_->holdKeyDown) { impl_->holdKeyDown = down; holdOriginal(down); }
                 return true;
