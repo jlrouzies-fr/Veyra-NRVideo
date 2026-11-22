@@ -6,13 +6,18 @@
 #include <QJsonObject>
 #include <QRegularExpression>
 #include <memory>
+#ifndef VEYRA_NO_UPDATE_VERIFY
 #include <openssl/evp.h>
+#endif
 
 namespace veyra::portable {
 namespace {
 
 bool verify(const QByteArray& payload, const QByteArray& signature, const QByteArray& key) {
     if (key.size() != 32 || signature.size() != 64 || payload.isEmpty()) return false;
+#ifdef VEYRA_NO_UPDATE_VERIFY
+    return false; // built without OpenSSL: nothing can be verified
+#else
     const std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> publicKey(
         EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr,
             reinterpret_cast<const unsigned char*>(key.constData()), key.size()), EVP_PKEY_free);
@@ -21,6 +26,7 @@ bool verify(const QByteArray& payload, const QByteArray& signature, const QByteA
         && EVP_DigestVerifyInit(context.get(), nullptr, nullptr, nullptr, publicKey.get()) == 1
         && EVP_DigestVerify(context.get(), reinterpret_cast<const unsigned char*>(signature.constData()),
             signature.size(), reinterpret_cast<const unsigned char*>(payload.constData()), payload.size()) == 1;
+#endif
 }
 
 QString origin() {
